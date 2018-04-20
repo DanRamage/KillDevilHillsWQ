@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source /Users/danramage/pyenv-2.7.7/bin/activate;
+source /usr/local/virtualenv/pyenv-2.7.11/bin/activate;
 
-python /Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/commonfiles/python/wqXMRGProcessing.py --ConfigFile=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kdh_historical_build_config_debug.ini --ImportData=/mnt/xmrg_data/xmrg/2006
+python /home/xeniaprod/scripts/commonfiles/python/wqXMRGProcessing.py --ConfigFile=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_historical_build_config.ini --ImportData=
