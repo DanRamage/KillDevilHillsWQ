@@ -19,7 +19,7 @@ from collections import OrderedDict
 
 from NOAATideData import noaaTideData
 from wqHistoricalData import tide_data_file
-from wqHistoricalData import station_geometry,sampling_sites, wq_defines, geometry_list
+from wqHistoricalData import tide_data_file_ex,station_geometry,sampling_sites, wq_defines, geometry_list
 from wq_output_results import wq_sample_data,wq_samples_collection,wq_advisories_file,wq_station_advisories_file
 from wq_sites import wq_sample_sites
 
@@ -78,6 +78,8 @@ class kdh_historical_wq_data(wq_data):
           end = ''
           if len(parts[1]) > 0:
             end = utc_tz.localize(datetime.strptime(parts[1], "%Y-%m"))
+          else:
+            end = None
           self.hycom_start_end.append((start, end))
           key = "%s_%s_hycom" % (parts[0], parts[1])
           self.hycomm_endpoints.append(config_file.get(key, 'thredds_url'))
@@ -99,6 +101,9 @@ class kdh_historical_wq_data(wq_data):
           self.rutgers_endpoints.append(config_file.get(key, 'thredds_url'))
 
       copernicus_file = config_file.get('copernicus_model_data', 'datafile')
+
+      tide_file = config_file.get('tide_station', 'tide_file')
+
     except (ConfigParser.Error, Exception) as e:
       self.logger.exception(e)
       raise
@@ -139,6 +144,12 @@ class kdh_historical_wq_data(wq_data):
       #make sure we get the ocean cell.
       self.rutgers_cell_pt = None
 
+      try:
+        tide_file = tide_data_file_ex()
+        tide_file.open(tide_file)
+      except (IOError, Exception) as e:
+        self.logger.exception(e)
+        raise
       if self.logger:
         self.logger.debug("Connection to xenia db: %s" % (xenia_database_name))
       self.xenia_db = wqDB(xenia_database_name, type(self).__name__)
@@ -230,11 +241,16 @@ class kdh_historical_wq_data(wq_data):
     #Check the date and reconnect endpoints as needed
 
     for ndx, hycom_date in enumerate(self.hycom_start_end):
-      if start_date > hycom_date[0] and start_date <= hycom_date[1]:
-        hycom_endpoint_ndx = ndx
-        break
-    if self.hycom_current_date_ndx != ndx:
-      self.hycom_current_date_ndx = ndx
+      if hycom_date[1] != None:
+        if start_date > hycom_date[0] and start_date <= hycom_date[1]:
+          hycom_endpoint_ndx = ndx
+          break
+      else:
+        if start_date > hycom_date[0]:
+          hycom_endpoint_ndx = ndx
+          break
+    if self.hycom_current_date_ndx != hycom_endpoint_ndx:
+      self.hycom_current_date_ndx = hycom_endpoint_ndx
       self.connect_to_hycom(self.hycomm_endpoints[self.hycom_current_date_ndx])
 
     #Check the date and reconnect endpoints as needed
@@ -260,6 +276,8 @@ class kdh_historical_wq_data(wq_data):
 
     self.initialize_return_data(wq_tests_data)
 
+    self.get_nexrad_data(start_date, wq_tests_data)
+    self.get_tide_data(start_date, wq_tests_data)
     self.get_rutgers_model_data(start_date, wq_tests_data)
     self.get_copernicus_model_data(start_date, wq_tests_data)
     self.get_hycom_model_data(start_date, wq_tests_data)
@@ -680,6 +698,103 @@ class kdh_historical_wq_data(wq_data):
       self.logger.debug("Finished retrieving hycom model data: %s" % (start_date))
     return
 
+  def get_nexrad_data(self, start_date, wq_tests_data):
+    start_time = time.time()
+    if self.logger:
+      self.logger.debug("Start retrieving nexrad data datetime: %s" % (start_date.strftime('%Y-%m-%d %H:%M:%S')))
+
+    # Collect the radar data for the boundaries.
+    for boundary in self.site.contained_by:
+      clean_var_bndry_name = boundary.name.lower().replace(' ', '_')
+
+      platform_handle = 'nws.%s.radarcoverage' % (boundary.name)
+      if self.logger:
+        self.logger.debug("Start retrieving nexrad platfrom: %s" % (platform_handle))
+      # Get the radar data for previous 8 days in 24 hour intervals
+      for prev_hours in range(24, 192, 24):
+        var_name = '%s_nexrad_summary_%d' % (clean_var_bndry_name, prev_hours)
+        radar_val = self.xenia_db.getLastNHoursSummaryFromRadarPrecip(platform_handle,
+                                                                       start_date,
+                                                                       prev_hours,
+                                                                       'precipitation_radar_weighted_average',
+                                                                       'mm')
+        if radar_val != None:
+          # Convert mm to inches
+          wq_tests_data[var_name] = radar_val * 0.0393701
+        else:
+          if self.logger:
+            self.logger.error("No data available for boundary: %s Date: %s. Error: %s" % (
+            var_name, start_date, self.xenia_db.getErrorInfo()))
+
+      # calculate the X day delay totals
+      if wq_tests_data['%s_nexrad_summary_48' % (clean_var_bndry_name)] != wq_defines.NO_DATA and \
+          wq_tests_data['%s_nexrad_summary_24' % (clean_var_bndry_name)] != wq_defines.NO_DATA:
+        wq_tests_data['%s_nexrad_total_1_day_delay' % (clean_var_bndry_name)] = wq_tests_data['%s_nexrad_summary_48' % (
+        clean_var_bndry_name)] - wq_tests_data['%s_nexrad_summary_24' % (clean_var_bndry_name)]
+
+      if wq_tests_data['%s_nexrad_summary_72' % (clean_var_bndry_name)] != wq_defines.NO_DATA and \
+          wq_tests_data['%s_nexrad_summary_48' % (clean_var_bndry_name)] != wq_defines.NO_DATA:
+        wq_tests_data['%s_nexrad_total_2_day_delay' % (clean_var_bndry_name)] = wq_tests_data['%s_nexrad_summary_72' % (
+        clean_var_bndry_name)] - wq_tests_data['%s_nexrad_summary_48' % (clean_var_bndry_name)]
+
+      if wq_tests_data['%s_nexrad_summary_96' % (clean_var_bndry_name)] != wq_defines.NO_DATA and \
+          wq_tests_data['%s_nexrad_summary_72' % (clean_var_bndry_name)] != wq_defines.NO_DATA:
+        wq_tests_data['%s_nexrad_total_3_day_delay' % (clean_var_bndry_name)] = wq_tests_data['%s_nexrad_summary_96' % (
+        clean_var_bndry_name)] - wq_tests_data['%s_nexrad_summary_72' % (clean_var_bndry_name)]
+
+      prev_dry_days = self.xenia_db.getPrecedingRadarDryDaysCount(platform_handle,
+                                                                   start_date,
+                                                                   'precipitation_radar_weighted_average',
+                                                                   'mm')
+      if prev_dry_days is not None:
+        var_name = '%s_nexrad_dry_days_count' % (clean_var_bndry_name)
+        wq_tests_data[var_name] = prev_dry_days
+
+      rainfall_intensity = self.xenia_db.calcRadarRainfallIntensity(platform_handle,
+                                                                     start_date,
+                                                                     60,
+                                                                     'precipitation_radar_weighted_average',
+                                                                     'mm')
+      if rainfall_intensity is not None:
+        var_name = '%s_nexrad_rainfall_intensity' % (clean_var_bndry_name)
+        wq_tests_data[var_name] = rainfall_intensity
+
+      if self.logger:
+        self.logger.debug("Finished retrieving nexrad platfrom: %s" % (platform_handle))
+
+    if self.logger:
+      self.logger.debug("Finished retrieving nexrad data datetime: %s in %f seconds" % (start_date.strftime('%Y-%m-%d %H:%M:%S'),
+                                                                                        time.time() - start_time))
+
+  def get_tide_data(self, start_date, wq_tests_data):
+    if self.logger:
+      self.logger.debug("Start retrieving tide data for station: %s date: %s" % (self.tide_station, start_date))
+
+    use_web_service = True
+    if self.tide_data_obj is not None:
+      use_web_service = False
+      date_key = start_date.strftime('%Y-%m-%dT%H:%M:%S')
+      if date_key in self.tide_data_obj:
+        tide_rec = self.tide_data_obj[date_key]
+        wq_tests_data['tide_range_%s' % (self.tide_station)] = float(tide_rec['range'])
+        wq_tests_data['tide_hi_%s' % (self.tide_station)] = float(tide_rec['hh'])
+        wq_tests_data['tide_lo_%s' % (self.tide_station)] = float(tide_rec['ll'])
+        wq_tests_data['tide_stage_%s' % (self.tide_station)] = float(tide_rec['tide_stage'])
+
+    #Save subordinate station values
+    if wq_tests_data['tide_hi_%s'%(self.tide_station)] != wq_defines.NO_DATA:
+      offset_hi = wq_tests_data['tide_hi_%s'%(self.tide_station)] * self.tide_offset_settings['hi_tide_height_offset']
+      offset_lo = wq_tests_data['tide_lo_%s'%(self.tide_station)] * self.tide_offset_settings['lo_tide_height_offset']
+
+      tide_station = self.tide_offset_settings['tide_station']
+      wq_tests_data['tide_range_%s' % (tide_station)] = offset_hi - offset_lo
+      wq_tests_data['tide_hi_%s' % (tide_station)] = offset_hi
+      wq_tests_data['tide_lo_%s' % (tide_station)] = offset_lo
+
+    if self.logger:
+      self.logger.debug("Finished retrieving tide data for station: %s date: %s" % (self.tide_station, start_date))
+
+    return
 
 def parse_file(**kwargs):
   start_time = time.time()
@@ -751,15 +866,15 @@ def main():
     sample_data_directory = '/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/data/historical/sample_data'
     historical_sample_files = os.listdir(sample_data_directory)
     site_data = OrderedDict([])
-    start_date = timezone('UTC').localize(datetime.strptime('2018-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
+    start_date = timezone('UTC').localize(datetime.strptime('2017-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
     for site in wq_sites:
       try:
-        # Get the station specific tide stations
         hycom_data_prefix = config_file.get(site.description, 'hycom_prefix')
         copernicus_data_prefix = config_file.get(site.description, 'copernicus_prefix')
         rutgers_data_prefix = config_file.get(site.description, 'rutgers_prefix')
         rutgers_cell_point = tuple(float(pt) for pt in config_file.get(site.description, 'rutgers_cell_loc').split(','))
 
+        # Get the station specific tide stations
         tide_station = config_file.get(site.description, 'tide_station')
         offset_tide_station = config_file.get(site.description, 'offset_tide_station')
         offset_key = "%s_tide_data" % (offset_tide_station)
