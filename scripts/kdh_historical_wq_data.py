@@ -16,6 +16,7 @@ import numpy as np
 from bisect import bisect_left,bisect_right
 import csv
 from collections import OrderedDict
+import math
 
 from NOAATideData import noaaTideData
 from wqHistoricalData import tide_data_file
@@ -26,6 +27,10 @@ from wq_sites import wq_sample_sites
 from wqHistoricalData import wq_data
 from romsTools import closestCellFromPtInPolygon,bbox2ij,closestCellFromPt,closestLonLatFromPt
 from nc_sample_data import nc_wq_sample_data
+from xeniaSQLiteAlchemy import xeniaAlchemy as sl_xeniaAlchemy, multi_obs as sl_multi_obs, func as sl_func
+from sqlalchemy import or_
+from xenia import qaqcTestFlags
+
 #import matplotlib
 #matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
@@ -152,7 +157,19 @@ class kdh_historical_wq_data(wq_data):
         raise
       if self.logger:
         self.logger.debug("Connection to xenia db: %s" % (xenia_database_name))
-      self.xenia_db = wqDB(xenia_database_name, type(self).__name__)
+      self.nexrad_db = wqDB(xenia_database_name, type(self).__name__)
+      try:
+        #Connect to the xenia database we use for observations aggregation.
+        self.xenia_obs_db = sl_xeniaAlchemy()
+        if self.xenia_obs_db.connectDB('sqlite', None, None, xenia_database_name, None, False):
+          self.logger.info("Succesfully connect to DB: %s" %(xenia_database_name))
+        else:
+          self.logger.error("Unable to connect to DB: %s." %(xenia_database_name))
+
+
+      except Exception,e:
+        self.logger.exception(e)
+        raise
 
   def connect_to_hycom(self, endpoint):
     self.logger.debug(
@@ -230,6 +247,8 @@ class kdh_historical_wq_data(wq_data):
     if 'tide_data_obj' in kwargs and kwargs['tide_data_obj'] is not None:
       self.tide_data_obj = kwargs['tide_data_obj']
 
+    self.platforms_info = kwargs['platform_info']
+
     self.hycom_data_prefix = kwargs['hycom_prefix']
 
     self.copernicus_data_prefix = kwargs['copernicus_prefix']
@@ -269,22 +288,6 @@ class kdh_historical_wq_data(wq_data):
       self.rutgers_current_date_ndx = ndx
       self.connect_to_rutgers(self.rutgers_endpoints[self.rutgers_current_date_ndx])
 
-
-  def query_data(self, start_date, end_date, wq_tests_data):
-    if self.logger:
-      self.logger.debug("Site: %s start query data for datetime: %s" % (self.site.name, start_date))
-
-    self.initialize_return_data(wq_tests_data)
-
-    self.get_nexrad_data(start_date, wq_tests_data)
-    self.get_tide_data(start_date, wq_tests_data)
-    self.get_rutgers_model_data(start_date, wq_tests_data)
-    self.get_copernicus_model_data(start_date, wq_tests_data)
-    self.get_hycom_model_data(start_date, wq_tests_data)
-
-    if self.logger:
-      self.logger.debug("Site: %s Finished query data for datetime: %s" % (self.site.name, start_date))
-
   """
   Function: initialize_return_data
   Purpose: INitialize our ordered dict with the data variables and assign a NO_DATA
@@ -315,8 +318,11 @@ class kdh_historical_wq_data(wq_data):
     var_name = 'tide_lo_%s' % (self.tide_offset_settings['tide_station'])
     wq_tests_data[var_name] = wq_defines.NO_DATA
 
-    wq_tests_data['nws_kffa_avg_wspd'] = wq_defines.NO_DATA
-    wq_tests_data['nws_kffa_avg_wdir'] = wq_defines.NO_DATA
+    for platform_nfo in self.platforms_info:
+      handle = platform_nfo['platform_handle']
+      for obs_nfo in platform_nfo['observations']:
+        var_name = '%s_avg_%s' % (handle.replace('.', '_'), obs_nfo['observation'])
+        wq_tests_data[var_name] = wq_defines.NO_DATA
 
     for boundary in self.site.contained_by:
       if len(boundary.name):
@@ -364,6 +370,29 @@ class kdh_historical_wq_data(wq_data):
       self.logger.debug("Finished creating and initializing data dict.")
 
     return
+
+  def query_data(self, start_date, end_date, wq_tests_data):
+    if self.logger:
+      self.logger.debug("Site: %s start query data for datetime: %s" % (self.site.name, start_date))
+
+    self.initialize_return_data(wq_tests_data)
+
+    for platform in self.platforms_info:
+      for obs_nfo in platform['observations']:
+        self.get_platform_data(platform['platform_handle'],
+                               obs_nfo['observation'], obs_nfo['uom'], obs_nfo['uom'],
+                               start_date,
+                               wq_tests_data)
+
+    self.get_nexrad_data(start_date, wq_tests_data)
+    self.get_tide_data(start_date, wq_tests_data)
+    self.get_rutgers_model_data(start_date, wq_tests_data)
+    self.get_copernicus_model_data(start_date, wq_tests_data)
+    self.get_hycom_model_data(start_date, wq_tests_data)
+
+    if self.logger:
+      self.logger.debug("Site: %s Finished query data for datetime: %s" % (self.site.name, start_date))
+
 
   def get_rutgers_model_data(self, start_date, wq_tests_data):
     if self.rutgers_current_date_ndx != -1:
@@ -713,7 +742,7 @@ class kdh_historical_wq_data(wq_data):
       # Get the radar data for previous 8 days in 24 hour intervals
       for prev_hours in range(24, 192, 24):
         var_name = '%s_nexrad_summary_%d' % (clean_var_bndry_name, prev_hours)
-        radar_val = self.xenia_db.getLastNHoursSummaryFromRadarPrecip(platform_handle,
+        radar_val = self.nexrad_db.getLastNHoursSummaryFromRadarPrecip(platform_handle,
                                                                        start_date,
                                                                        prev_hours,
                                                                        'precipitation_radar_weighted_average',
@@ -724,7 +753,7 @@ class kdh_historical_wq_data(wq_data):
         else:
           if self.logger:
             self.logger.error("No data available for boundary: %s Date: %s. Error: %s" % (
-            var_name, start_date, self.xenia_db.getErrorInfo()))
+            var_name, start_date, self.nexrad_db.getErrorInfo()))
 
       # calculate the X day delay totals
       if wq_tests_data['%s_nexrad_summary_48' % (clean_var_bndry_name)] != wq_defines.NO_DATA and \
@@ -742,7 +771,7 @@ class kdh_historical_wq_data(wq_data):
         wq_tests_data['%s_nexrad_total_3_day_delay' % (clean_var_bndry_name)] = wq_tests_data['%s_nexrad_summary_96' % (
         clean_var_bndry_name)] - wq_tests_data['%s_nexrad_summary_72' % (clean_var_bndry_name)]
 
-      prev_dry_days = self.xenia_db.getPrecedingRadarDryDaysCount(platform_handle,
+      prev_dry_days = self.nexrad_db.getPrecedingRadarDryDaysCount(platform_handle,
                                                                    start_date,
                                                                    'precipitation_radar_weighted_average',
                                                                    'mm')
@@ -750,7 +779,7 @@ class kdh_historical_wq_data(wq_data):
         var_name = '%s_nexrad_dry_days_count' % (clean_var_bndry_name)
         wq_tests_data[var_name] = prev_dry_days
 
-      rainfall_intensity = self.xenia_db.calcRadarRainfallIntensity(platform_handle,
+      rainfall_intensity = self.nexrad_db.calcRadarRainfallIntensity(platform_handle,
                                                                      start_date,
                                                                      60,
                                                                      'precipitation_radar_weighted_average',
@@ -796,6 +825,113 @@ class kdh_historical_wq_data(wq_data):
 
     return
 
+  def get_platform_data(self, platform_handle, variable, from_uom, to_uom, start_date, wq_tests_data):
+    start_time = time.time()
+    try:
+      uom = from_uom
+      if to_uom is not None:
+        uom = to_uom
+      self.logger.debug("Platform: %s Obs: %s(%s) Date: %s query" % (platform_handle, variable, uom, start_date))
+
+      station = platform_handle.replace('.', '_')
+      var_name = '%s_%s' % (station, variable)
+      end_date = start_date
+      begin_date = start_date - timedelta(hours=24)
+      if variable != 'wind_speed':
+        sensor_id = self.xenia_obs_db.sensorExists(variable, from_uom, platform_handle, 1)
+      else:
+        sensor_id = self.xenia_obs_db.sensorExists(variable, from_uom, platform_handle, 1)
+        wind_dir_id = self.xenia_obs_db.sensorExists('wind_from_direction', 'degrees_true', platform_handle, 1)
+
+      if sensor_id is not -1 and sensor_id is not None:
+        recs = self.xenia_obs_db.session.query(sl_multi_obs) \
+          .filter(sl_multi_obs.m_date >= begin_date.strftime('%Y-%m-%dT%H:%M:%S')) \
+          .filter(sl_multi_obs.m_date < end_date.strftime('%Y-%m-%dT%H:%M:%S')) \
+          .filter(sl_multi_obs.sensor_id == sensor_id) \
+          .filter(or_(sl_multi_obs.qc_level == qaqcTestFlags.DATA_QUAL_GOOD, sl_multi_obs.qc_level == None)) \
+          .order_by(sl_multi_obs.m_date).all()
+        if variable == 'wind_speed':
+          dir_recs = self.xenia_obs_db.session.query(sl_multi_obs) \
+            .filter(sl_multi_obs.m_date >= begin_date.strftime('%Y-%m-%dT%H:%M:%S')) \
+            .filter(sl_multi_obs.m_date < end_date.strftime('%Y-%m-%dT%H:%M:%S')) \
+            .filter(sl_multi_obs.sensor_id == wind_dir_id) \
+            .filter(or_(sl_multi_obs.qc_level == qaqcTestFlags.DATA_QUAL_GOOD, sl_multi_obs.qc_level == None)) \
+            .order_by(sl_multi_obs.m_date).all()
+
+        if len(recs):
+          if variable == 'wind_speed':
+            if sensor_id is not None and wind_dir_id is not None:
+              wind_dir_tuples = []
+              direction_tuples = []
+              scalar_speed_avg = None
+              speed_count = 0
+              for wind_speed_row in recs:
+                for wind_dir_row in dir_recs:
+                  if wind_speed_row.m_date == wind_dir_row.m_date:
+                    # self.logger.debug("Building tuple for Speed(%s): %f Dir(%s): %f" % (
+                    # wind_speed_row.m_date, wind_speed_row.m_value, wind_dir_row.m_date, wind_dir_row.m_value))
+                    if scalar_speed_avg is None:
+                      scalar_speed_avg = 0
+                    scalar_speed_avg += wind_speed_row.m_value
+                    speed_count += 1
+                    # Vector using both speed and direction.
+                    wind_dir_tuples.append((wind_speed_row.m_value, wind_dir_row.m_value))
+                    # Vector with speed as constant(1), and direction.
+                    direction_tuples.append((1, wind_dir_row.m_value))
+                    break
+
+              if len(wind_dir_tuples):
+                avg_speed_dir_components = calcAvgSpeedAndDir(wind_dir_tuples)
+                self.logger.debug("Platform: %s Avg Wind Speed: %f(m_s-1) %f(mph) Direction: %f" % (platform_handle,
+                                                                                                    avg_speed_dir_components[
+                                                                                                      0],
+                                                                                                    avg_speed_dir_components[
+                                                                                                      0],
+                                                                                                    avg_speed_dir_components[
+                                                                                                      1]))
+
+                # Unity components, just direction with speeds all 1.
+                avg_dir_components = calcAvgSpeedAndDir(direction_tuples)
+                scalar_speed_avg = scalar_speed_avg / speed_count
+                wq_tests_data[var_name] = scalar_speed_avg
+                wind_dir_var_name = '%s_%s' % (station, 'wind_from_direction')
+                wq_tests_data[wind_dir_var_name] = avg_dir_components[1]
+                self.logger.debug(
+                  "Platform: %s Avg Scalar Wind Speed: %f(m_s-1) %f(mph) Direction: %f" % (platform_handle,
+                                                                                           scalar_speed_avg,
+                                                                                           scalar_speed_avg,
+                                                                                           avg_dir_components[1]))
+
+
+          else:
+            wq_tests_data[var_name] = sum(rec.m_value for rec in recs) / len(recs)
+            if to_uom is not None:
+              converted_val = self.units_conversion.measurementConvert(wq_tests_data[var_name], from_uom, to_uom)
+              if converted_val is not None:
+                wq_tests_data[var_name] = converted_val
+            self.logger.debug("Platform: %s Avg %s: %f Records used: %d" % (
+              platform_handle, variable, wq_tests_data[var_name], len(recs)))
+
+            if variable == 'water_conductivity':
+              water_con = wq_tests_data[var_name]
+              #if uom == 'uS_cm-1':
+              water_con = water_con / 1000.0
+              salinity_var = '%s_%s' % (station, 'salinity')
+              wq_tests_data[salinity_var] = 0.47413 / (math.pow((1 / water_con), 1.07) - 0.7464 * math.pow(10, -3))
+              self.logger.debug("Platform: %s Avg %s: %f Records used: %d" % (
+                platform_handle, 'salinity', wq_tests_data[salinity_var], len(recs)))
+        else:
+          self.logger.error(
+            "Platform: %s sensor: %s(%s) Date: %s had no data" % (platform_handle, variable, uom, start_date))
+      else:
+        self.logger.error("Platform: %s sensor: %s(%s) does not exist" % (platform_handle, variable, uom))
+      self.logger.debug("Platform: %s query finished in %f seconds" % (platform_handle, time.time()-start_time))
+    except Exception as e:
+      self.logger.exception(e)
+      return False
+
+    return True
+
 def parse_file(**kwargs):
   start_time = time.time()
   est_tz = timezone('US/Eastern')
@@ -819,13 +955,21 @@ def parse_file(**kwargs):
     csv_reader = csv.DictReader(data_file, header)
     for row_ndx,row in enumerate(csv_reader):
       if row_ndx > 0:
+        add_rec = False
         sample_data = nc_wq_sample_data()
         date_obj = (est_tz.localize(datetime.strptime(row['date'], '%Y-%m-%d %H:%M:%S'))).astimezone(utc_tz)
-        sample_data.date_time = date_obj
-        sample_data.station = row['site_id']
-        sample_data.entero_gm = row['entero gm']
-        sample_data.entero_ssm = row['entero ssm']
-        sample_collection.append(sample_data)
+        if start_date is not None:
+          if date_obj >= start_date:
+            add_rec = True
+        else:
+          add_rec = False
+        if add_rec:
+          sample_data.date_time = date_obj
+          sample_data.station = row['site_id']
+          sample_data.entero_gm = row['entero gm']
+          sample_data.entero_ssm = row['entero ssm']
+          sample_collection.append(sample_data)
+
   logger.debug("Finished processing file in %f seconds." % (time.time()-start_time))
   return
 
@@ -866,7 +1010,7 @@ def main():
     sample_data_directory = '/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/data/historical/sample_data'
     historical_sample_files = os.listdir(sample_data_directory)
     site_data = OrderedDict([])
-    start_date = timezone('UTC').localize(datetime.strptime('2017-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
+    start_date = timezone('UTC').localize(datetime.strptime('2005-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
     for site in wq_sites:
       try:
         hycom_data_prefix = config_file.get(site.description, 'hycom_prefix')
@@ -885,6 +1029,18 @@ def main():
           'hi_tide_height_offset': config_file.getfloat(offset_key, 'hi_tide_height_offset'),
           'lo_tide_height_offset': config_file.getfloat(offset_key, 'lo_tide_height_offset')
         }
+        #Get the platforms the site will use
+        platforms = config_file.get(site.description, 'platforms').split(',')
+        platform_nfo = []
+        for platform in platforms:
+          obs_uoms = config_file.get(platform,'observation').split(';')
+          obs_uom_nfo = []
+          for nfo in obs_uoms:
+            obs,uom = nfo.split(',')
+            obs_uom_nfo.append({'observation': obs,
+                                'uom': uom})
+          platform_nfo.append({'platform_handle': config_file.get(platform,'handle'),
+                               'observations': obs_uom_nfo})
 
       except ConfigParser.Error, e:
         if logger:
@@ -901,24 +1057,9 @@ def main():
           sample_recs = samples_collection[site.name]
           sample_recs.sort(key=lambda x: x.date_time, reverse=False)
 
-          wq_historical_data.reset(site=site,
-                                   tide_station=tide_station,
-                                   tide_offset_params=tide_offset_settings,
-                                   hycom_prefix=hycom_data_prefix,
-                                   copernicus_prefix=copernicus_data_prefix,
-                                   start_date=start_date,
-                                   rutgers_cell_point=rutgers_cell_point,
-                                   rutgers_prefix=rutgers_data_prefix)
-
-          try:
-            wq_historical_data.query_data(start_date, start_date, site_data)
-          except Exception, e:
-            if logger:
-              logger.exception(e)
-            sys.exit(-1)
-
-          for sample_data in samples_collection[site.name]:
-            if sample_data.date_time.date() >= start_date.date():
+          for sample_data in sample_recs:
+            start_date = sample_data.date_time
+            try:
               wq_historical_data.reset(site=site,
                                        tide_station=tide_station,
                                        tide_offset_params=tide_offset_settings,
@@ -926,14 +1067,13 @@ def main():
                                        copernicus_prefix=copernicus_data_prefix,
                                        start_date=sample_data.date_time,
                                        rutgers_cell_point=rutgers_cell_point,
-                                       rutgers_prefix=rutgers_data_prefix)
-
-              try:
-                wq_historical_data.query_data(sample_data.date_time, sample_data.date_time, site_data)
-              except Exception, e:
-                if logger:
-                  logger.exception(e)
-                sys.exit(-1)
+                                       rutgers_prefix=rutgers_data_prefix,
+                                       platform_info=platform_nfo)
+              wq_historical_data.query_data(sample_data.date_time, sample_data.date_time, site_data)
+            except Exception, e:
+              if logger:
+                logger.exception(e)
+              sys.exit(-1)
 
     """
     site_data = OrderedDict([('autonumber', 1),
