@@ -30,6 +30,7 @@ from nc_sample_data import nc_wq_sample_data
 from xeniaSQLiteAlchemy import xeniaAlchemy as sl_xeniaAlchemy, multi_obs as sl_multi_obs, func as sl_func
 from sqlalchemy import or_
 from xenia import qaqcTestFlags
+from stats import calcAvgSpeedAndDir
 
 #import matplotlib
 #matplotlib.use('Agg')
@@ -107,7 +108,7 @@ class kdh_historical_wq_data(wq_data):
 
       copernicus_file = config_file.get('copernicus_model_data', 'datafile')
 
-      tide_file = config_file.get('tide_station', 'tide_file')
+      tide_file_name = config_file.get('tide_station', 'tide_file')
 
     except (ConfigParser.Error, Exception) as e:
       self.logger.exception(e)
@@ -150,8 +151,8 @@ class kdh_historical_wq_data(wq_data):
       self.rutgers_cell_pt = None
 
       try:
-        tide_file = tide_data_file_ex()
-        tide_file.open(tide_file)
+        self.tide_data_obj = tide_data_file_ex()
+        self.tide_data_obj.open(tide_file_name)
       except (IOError, Exception) as e:
         self.logger.exception(e)
         raise
@@ -237,24 +238,25 @@ class kdh_historical_wq_data(wq_data):
     return
 
   def reset(self, **kwargs):
-    self.site = kwargs['site']
-    #The main station we retrieve the values from.
-    self.tide_station = kwargs['tide_station']
-    #These are the settings to correct the tide for the subordinate station.
-    self.tide_offset_settings = kwargs['tide_offset_params']
+    if self.site is None or self.site != kwargs['site']:
+      self.site = kwargs['site']
+      #The main station we retrieve the values from.
+      self.tide_station = kwargs['tide_station']
+      #These are the settings to correct the tide for the subordinate station.
+      self.tide_offset_settings = kwargs['tide_offset_params']
 
-    self.tide_data_obj = None
-    if 'tide_data_obj' in kwargs and kwargs['tide_data_obj'] is not None:
-      self.tide_data_obj = kwargs['tide_data_obj']
+      #self.tide_data_obj = None
+      #if 'tide_data_obj' in kwargs and kwargs['tide_data_obj'] is not None:
+      #  self.tide_data_obj = kwargs['tide_data_obj']
 
-    self.platforms_info = kwargs['platform_info']
+      self.platforms_info = kwargs['platform_info']
 
-    self.hycom_data_prefix = kwargs['hycom_prefix']
+      self.hycom_data_prefix = kwargs['hycom_prefix']
 
-    self.copernicus_data_prefix = kwargs['copernicus_prefix']
+      self.copernicus_data_prefix = kwargs['copernicus_prefix']
 
-    self.rutgers_data_prefix = kwargs['rutgers_prefix']
-    self.rutgers_cell_pt = kwargs['rutgers_cell_point']
+      self.rutgers_data_prefix = kwargs['rutgers_prefix']
+      self.rutgers_cell_pt = kwargs['rutgers_cell_point']
 
     start_date = kwargs['start_date']
     #Check the date and reconnect endpoints as needed
@@ -334,7 +336,7 @@ class kdh_historical_wq_data(wq_data):
         var_name = '%s_nexrad_dry_days_count' % (clean_var_boundary_name)
         wq_tests_data[var_name] = wq_defines.NO_DATA
 
-        var_name = '%s_nexrad_rainfall_intesity' % (clean_var_boundary_name)
+        var_name = '%s_nexrad_rainfall_intensity' % (clean_var_boundary_name)
         wq_tests_data[var_name] = wq_defines.NO_DATA
 
         var_name = '%s_nexrad_total_1_day_delay' % (clean_var_boundary_name)
@@ -345,21 +347,21 @@ class kdh_historical_wq_data(wq_data):
         wq_tests_data[var_name] = wq_defines.NO_DATA
 
 
-    for hour in range(24,192,24):
-      wq_tests_data['%s_time_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
+    for hour in range(24,48,24):
+      #wq_tests_data['%s_time_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
       wq_tests_data['%s_avg_salinity_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
-      wq_tests_data['%s_min_salinity_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
-      wq_tests_data['%s_max_salinity_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_min_salinity_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_max_salinity_%d' % (self.hycom_data_prefix,hour)] = wq_defines.NO_DATA
 
-      wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
       wq_tests_data['%s_avg_salinity_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
-      wq_tests_data['%s_min_salinity_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
-      wq_tests_data['%s_max_salinity_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_min_salinity_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_max_salinity_%d' % (self.copernicus_data_prefix,hour)] = wq_defines.NO_DATA
 
-      wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
       wq_tests_data['%s_avg_salinity_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
-      wq_tests_data['%s_min_salinity_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
-      wq_tests_data['%s_max_salinity_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_min_salinity_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
+      #wq_tests_data['%s_max_salinity_%d' % (self.rutgers_data_prefix,hour)] = wq_defines.NO_DATA
 
 
     #wq_tests_data['%s_avg_water_temp_24' % (self.hycom_data_prefix)] = wq_defines.NO_DATA
@@ -380,7 +382,7 @@ class kdh_historical_wq_data(wq_data):
     for platform in self.platforms_info:
       for obs_nfo in platform['observations']:
         self.get_platform_data(platform['platform_handle'],
-                               obs_nfo['observation'], obs_nfo['uom'], obs_nfo['uom'],
+                               obs_nfo['observation'], obs_nfo['uom'],
                                start_date,
                                wq_tests_data)
 
@@ -462,7 +464,7 @@ class kdh_historical_wq_data(wq_data):
                                self.rutgers_model.variables['mask_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui])
 
         adjusted_end_ndx = None
-        for hour in range(24, 192, 24):
+        for hour in range(24, 48, 24):
           # Calculate the date we will start at referenced to the beginning_time of the data.
           begin_delta = (start_date - timedelta(hours=hour)) - model_time
           # Get the hours count.
@@ -481,17 +483,18 @@ class kdh_historical_wq_data(wq_data):
 
           # Get the last 24 hour average salinity data
           avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx, int(pt_cell.x), int(pt_cell.y)]
-
+          """
           if self.rutgers_time is None:
             wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix, hour)] = model_time + timedelta(
               seconds=int(self.rutgers_ocean_time[begin_ndx]))
           else:
             wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix, hour)] = model_time + timedelta(
             hours=int(self.rutgers_time[begin_ndx]))
+          """
           wq_tests_data['%s_avg_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(
             np.average(avg_salinity_pts))
-          wq_tests_data['%s_min_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.min())
-          wq_tests_data['%s_max_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.max())
+          #wq_tests_data['%s_min_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.min())
+          #wq_tests_data['%s_max_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.max())
 
           adjusted_end_ndx = adjusted_begin_ndx
         """
@@ -542,7 +545,7 @@ class kdh_historical_wq_data(wq_data):
                                           self.model_within_polygon)
           adjusted_end_ndx = None
 
-          for hour in range(24, 192, 24):
+          for hour in range(24, 48, 24):
             #Calculate the date we will start at referenced to the beginning_time of the data.
             begin_delta = (start_date - timedelta(hours=hour)) - beginning_time
             #Get the hours count.
@@ -561,10 +564,10 @@ class kdh_historical_wq_data(wq_data):
             #Get the last 24 hour average salinity data
             avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx,int(pt.y),int(pt.x)]
 
-            wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix, hour)] = beginning_time + timedelta(hours=int(self.copernicus_model_time[begin_ndx]))
+            #wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix, hour)] = beginning_time + timedelta(hours=int(self.copernicus_model_time[begin_ndx]))
             wq_tests_data['%s_avg_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(np.average(avg_salinity_pts))
-            wq_tests_data['%s_min_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.min())
-            wq_tests_data['%s_max_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.max())
+            #wq_tests_data['%s_min_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.min())
+            #wq_tests_data['%s_max_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.max())
 
             adjusted_end_ndx = adjusted_begin_ndx
           """
@@ -631,7 +634,7 @@ class kdh_historical_wq_data(wq_data):
                                           self.model_within_polygon)
           adjusted_end_ndx = None
 
-          for hour in range(24, 192, 24):
+          for hour in range(24, 48, 24):
             #Calculate the date we will start at referenced to the beginning_time of the data.
             begin_delta = (start_date - timedelta(hours=hour)) - beginning_time
             #Get the hours count.
@@ -650,10 +653,10 @@ class kdh_historical_wq_data(wq_data):
             #Get the last 24 hour average salinity data
             avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx,int(pt.y),int(pt.x)]
 
-            wq_tests_data['%s_time_%d' % (self.hycom_data_prefix, hour)] = beginning_time + timedelta(hours=self.hycom_model_time[begin_ndx])
+            #wq_tests_data['%s_time_%d' % (self.hycom_data_prefix, hour)] = beginning_time + timedelta(hours=self.hycom_model_time[begin_ndx])
             wq_tests_data['%s_avg_salinity_%d' % (self.hycom_data_prefix, hour)] = float(np.average(avg_salinity_pts))
-            wq_tests_data['%s_min_salinity_%d' % (self.hycom_data_prefix, hour)] = float(avg_salinity_pts.min())
-            wq_tests_data['%s_max_salinity_%d' % (self.hycom_data_prefix, hour)] = float(avg_salinity_pts.max())
+            #wq_tests_data['%s_min_salinity_%d' % (self.hycom_data_prefix, hour)] = float(avg_salinity_pts.min())
+            #wq_tests_data['%s_max_salinity_%d' % (self.hycom_data_prefix, hour)] = float(avg_salinity_pts.max())
 
             adjusted_end_ndx = adjusted_begin_ndx
           """
@@ -805,10 +808,17 @@ class kdh_historical_wq_data(wq_data):
       date_key = start_date.strftime('%Y-%m-%dT%H:%M:%S')
       if date_key in self.tide_data_obj:
         tide_rec = self.tide_data_obj[date_key]
-        wq_tests_data['tide_range_%s' % (self.tide_station)] = float(tide_rec['range'])
-        wq_tests_data['tide_hi_%s' % (self.tide_station)] = float(tide_rec['hh'])
-        wq_tests_data['tide_lo_%s' % (self.tide_station)] = float(tide_rec['ll'])
-        wq_tests_data['tide_stage_%s' % (self.tide_station)] = float(tide_rec['tide_stage'])
+        if tide_rec['range'] is not None:
+          wq_tests_data['tide_range_%s' % (self.tide_station)] = tide_rec['range']
+
+        if tide_rec['hh'] is not None:
+          wq_tests_data['tide_hi_%s' % (self.tide_station)] = tide_rec['hh']
+
+        if tide_rec['ll'] is not None:
+          wq_tests_data['tide_lo_%s' % (self.tide_station)] = tide_rec['ll']
+
+        if tide_rec['tide_stage'] is not None:
+          wq_tests_data['tide_stage_%s' % (self.tide_station)] = tide_rec['tide_stage']
 
     #Save subordinate station values
     if wq_tests_data['tide_hi_%s'%(self.tide_station)] != wq_defines.NO_DATA:
@@ -825,23 +835,19 @@ class kdh_historical_wq_data(wq_data):
 
     return
 
-  def get_platform_data(self, platform_handle, variable, from_uom, to_uom, start_date, wq_tests_data):
+  def get_platform_data(self, platform_handle, variable, uom, start_date, wq_tests_data):
     start_time = time.time()
     try:
-      uom = from_uom
-      if to_uom is not None:
-        uom = to_uom
       self.logger.debug("Platform: %s Obs: %s(%s) Date: %s query" % (platform_handle, variable, uom, start_date))
 
       station = platform_handle.replace('.', '_')
-      var_name = '%s_%s' % (station, variable)
+      var_name = '%s_avg_%s' % (station, variable)
       end_date = start_date
       begin_date = start_date - timedelta(hours=24)
-      if variable != 'wind_speed':
-        sensor_id = self.xenia_obs_db.sensorExists(variable, from_uom, platform_handle, 1)
-      else:
-        sensor_id = self.xenia_obs_db.sensorExists(variable, from_uom, platform_handle, 1)
-        wind_dir_id = self.xenia_obs_db.sensorExists('wind_from_direction', 'degrees_true', platform_handle, 1)
+      dir_id = None
+      sensor_id = self.xenia_obs_db.sensorExists(variable, uom, platform_handle, 1)
+      if variable == 'wind_speed':
+        dir_id = self.xenia_obs_db.sensorExists('wind_from_direction', 'degrees_true', platform_handle, 1)
 
       if sensor_id is not -1 and sensor_id is not None:
         recs = self.xenia_obs_db.session.query(sl_multi_obs) \
@@ -850,17 +856,17 @@ class kdh_historical_wq_data(wq_data):
           .filter(sl_multi_obs.sensor_id == sensor_id) \
           .filter(or_(sl_multi_obs.qc_level == qaqcTestFlags.DATA_QUAL_GOOD, sl_multi_obs.qc_level == None)) \
           .order_by(sl_multi_obs.m_date).all()
-        if variable == 'wind_speed':
+        if dir_id is not None:
           dir_recs = self.xenia_obs_db.session.query(sl_multi_obs) \
             .filter(sl_multi_obs.m_date >= begin_date.strftime('%Y-%m-%dT%H:%M:%S')) \
             .filter(sl_multi_obs.m_date < end_date.strftime('%Y-%m-%dT%H:%M:%S')) \
-            .filter(sl_multi_obs.sensor_id == wind_dir_id) \
+            .filter(sl_multi_obs.sensor_id == dir_id) \
             .filter(or_(sl_multi_obs.qc_level == qaqcTestFlags.DATA_QUAL_GOOD, sl_multi_obs.qc_level == None)) \
             .order_by(sl_multi_obs.m_date).all()
 
         if len(recs):
           if variable == 'wind_speed':
-            if sensor_id is not None and wind_dir_id is not None:
+            if sensor_id is not None and dir_id is not None:
               wind_dir_tuples = []
               direction_tuples = []
               scalar_speed_avg = None
@@ -894,21 +900,30 @@ class kdh_historical_wq_data(wq_data):
                 avg_dir_components = calcAvgSpeedAndDir(direction_tuples)
                 scalar_speed_avg = scalar_speed_avg / speed_count
                 wq_tests_data[var_name] = scalar_speed_avg
-                wind_dir_var_name = '%s_%s' % (station, 'wind_from_direction')
+                wind_dir_var_name = '%s_avg_%s' % (station, 'wind_from_direction')
                 wq_tests_data[wind_dir_var_name] = avg_dir_components[1]
                 self.logger.debug(
                   "Platform: %s Avg Scalar Wind Speed: %f(m_s-1) %f(mph) Direction: %f" % (platform_handle,
                                                                                            scalar_speed_avg,
                                                                                            scalar_speed_avg,
                                                                                            avg_dir_components[1]))
+          #Calculate vector direction.
+          elif variable == 'sea_surface_wave_to_direction':
+            direction_tuples = []
+            for dir_row in recs:
+              # Vector with speed as constant(1), and direction.
+              direction_tuples.append((1, dir_row.m_value))
 
+            if len(direction_tuples):
+              # Unity components, just direction with speeds all 1.
+              avg_dir_components = calcAvgSpeedAndDir(direction_tuples)
+              wq_tests_data[var_name] = avg_dir_components[1]
+              self.logger.debug(
+                "Platform: %s Avg Scalar Direction: %f" % (platform_handle,
+                                                           avg_dir_components[1]))
 
           else:
             wq_tests_data[var_name] = sum(rec.m_value for rec in recs) / len(recs)
-            if to_uom is not None:
-              converted_val = self.units_conversion.measurementConvert(wq_tests_data[var_name], from_uom, to_uom)
-              if converted_val is not None:
-                wq_tests_data[var_name] = converted_val
             self.logger.debug("Platform: %s Avg %s: %f Records used: %d" % (
               platform_handle, variable, wq_tests_data[var_name], len(recs)))
 
@@ -916,7 +931,7 @@ class kdh_historical_wq_data(wq_data):
               water_con = wq_tests_data[var_name]
               #if uom == 'uS_cm-1':
               water_con = water_con / 1000.0
-              salinity_var = '%s_%s' % (station, 'salinity')
+              salinity_var = '%s_avg_%s' % (station, 'salinity')
               wq_tests_data[salinity_var] = 0.47413 / (math.pow((1 / water_con), 1.07) - 0.7464 * math.pow(10, -3))
               self.logger.debug("Platform: %s Avg %s: %f Records used: %d" % (
                 platform_handle, 'salinity', wq_tests_data[salinity_var], len(recs)))
@@ -934,7 +949,7 @@ class kdh_historical_wq_data(wq_data):
 
 def parse_file(**kwargs):
   start_time = time.time()
-  est_tz = timezone('US/Eastern')
+  #est_tz = timezone('US/Eastern')
   utc_tz = timezone('UTC')
   logger = logging.getLogger(__name__)
   logger.debug("Starting parse_file")
@@ -957,7 +972,7 @@ def parse_file(**kwargs):
       if row_ndx > 0:
         add_rec = False
         sample_data = nc_wq_sample_data()
-        date_obj = (est_tz.localize(datetime.strptime(row['date'], '%Y-%m-%d %H:%M:%S'))).astimezone(utc_tz)
+        date_obj = (utc_tz.localize(datetime.strptime(row['date'], '%Y-%m-%d %H:%M:%S')))
         if start_date is not None:
           if date_obj >= start_date:
             add_rec = True
@@ -977,6 +992,8 @@ def main():
   parser = optparse.OptionParser()
   parser.add_option("--ConfigFile", dest="config_file", default=None,
                     help="INI Configuration file." )
+  parser.add_option("--OutputDirectory", dest="output_dir", default=None,
+                    help="Directory to save the historical data site files." )
   (options, args) = parser.parse_args()
 
 
@@ -1009,72 +1026,112 @@ def main():
 
     sample_data_directory = '/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/data/historical/sample_data'
     historical_sample_files = os.listdir(sample_data_directory)
-    site_data = OrderedDict([])
-    start_date = timezone('UTC').localize(datetime.strptime('2005-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
+    #start_date = timezone('UTC').localize(datetime.strptime('2005-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
+    utc_tz = timezone('UTC')
+    est_tz = timezone('US/Eastern')
+    data_start_date = utc_tz.localize(datetime.strptime('2005-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
     for site in wq_sites:
-      try:
-        hycom_data_prefix = config_file.get(site.description, 'hycom_prefix')
-        copernicus_data_prefix = config_file.get(site.description, 'copernicus_prefix')
-        rutgers_data_prefix = config_file.get(site.description, 'rutgers_prefix')
-        rutgers_cell_point = tuple(float(pt) for pt in config_file.get(site.description, 'rutgers_cell_loc').split(','))
+      out_file = os.path.join(options.output_dir, "%s_historical_data.csv" % (site.name))
+      write_header = True
+      with open(out_file, 'w') as site_data_file:
+        try:
+          hycom_data_prefix = config_file.get(site.description, 'hycom_prefix')
+          copernicus_data_prefix = config_file.get(site.description, 'copernicus_prefix')
+          rutgers_data_prefix = config_file.get(site.description, 'rutgers_prefix')
+          rutgers_cell_point = tuple(float(pt) for pt in config_file.get(site.description, 'rutgers_cell_loc').split(','))
 
-        # Get the station specific tide stations
-        tide_station = config_file.get(site.description, 'tide_station')
-        offset_tide_station = config_file.get(site.description, 'offset_tide_station')
-        offset_key = "%s_tide_data" % (offset_tide_station)
-        tide_offset_settings = {
-          'tide_station': config_file.get(offset_key, 'station_id'),
-          'hi_tide_time_offset': config_file.getint(offset_key, 'hi_tide_time_offset'),
-          'lo_tide_time_offset': config_file.getint(offset_key, 'lo_tide_time_offset'),
-          'hi_tide_height_offset': config_file.getfloat(offset_key, 'hi_tide_height_offset'),
-          'lo_tide_height_offset': config_file.getfloat(offset_key, 'lo_tide_height_offset')
-        }
-        #Get the platforms the site will use
-        platforms = config_file.get(site.description, 'platforms').split(',')
-        platform_nfo = []
-        for platform in platforms:
-          obs_uoms = config_file.get(platform,'observation').split(';')
-          obs_uom_nfo = []
-          for nfo in obs_uoms:
-            obs,uom = nfo.split(',')
-            obs_uom_nfo.append({'observation': obs,
-                                'uom': uom})
-          platform_nfo.append({'platform_handle': config_file.get(platform,'handle'),
-                               'observations': obs_uom_nfo})
+          # Get the station specific tide stations
+          tide_station = config_file.get(site.description, 'tide_station')
+          offset_tide_station = config_file.get(site.description, 'offset_tide_station')
+          offset_key = "%s_tide_data" % (offset_tide_station)
+          tide_offset_settings = {
+            'tide_station': config_file.get(offset_key, 'station_id'),
+            'hi_tide_time_offset': config_file.getint(offset_key, 'hi_tide_time_offset'),
+            'lo_tide_time_offset': config_file.getint(offset_key, 'lo_tide_time_offset'),
+            'hi_tide_height_offset': config_file.getfloat(offset_key, 'hi_tide_height_offset'),
+            'lo_tide_height_offset': config_file.getfloat(offset_key, 'lo_tide_height_offset')
+          }
+          #Get the platforms the site will use
+          platforms = config_file.get(site.description, 'platforms').split(',')
+          platform_nfo = []
+          for platform in platforms:
+            obs_uoms = config_file.get(platform,'observation').split(';')
+            obs_uom_nfo = []
+            for nfo in obs_uoms:
+              obs,uom = nfo.split(',')
+              obs_uom_nfo.append({'observation': obs,
+                                  'uom': uom})
+            platform_nfo.append({'platform_handle': config_file.get(platform,'handle'),
+                                 'observations': obs_uom_nfo})
 
-      except ConfigParser.Error, e:
-        if logger:
-          logger.exception(e)
+        except ConfigParser.Error, e:
+          if logger:
+            logger.exception(e)
 
-      file_name = site.name
-      for file in historical_sample_files:
-        if file.find(file_name) != -1:
-          samples_collection = wq_samples_collection()
-          full_path = os.path.join(sample_data_directory, file)
-          parse_file(data_file=full_path,
-                     samples_collection=samples_collection,
-                     start_date=start_date)
-          sample_recs = samples_collection[site.name]
-          sample_recs.sort(key=lambda x: x.date_time, reverse=False)
+        file_name = site.name
+        for file in historical_sample_files:
+          if file.find(file_name) != -1:
+            samples_collection = wq_samples_collection()
+            full_path = os.path.join(sample_data_directory, file)
+            parse_file(data_file=full_path,
+                       samples_collection=samples_collection,
+                       start_date=data_start_date)
 
-          for sample_data in sample_recs:
-            start_date = sample_data.date_time
             try:
-              wq_historical_data.reset(site=site,
-                                       tide_station=tide_station,
-                                       tide_offset_params=tide_offset_settings,
-                                       hycom_prefix=hycom_data_prefix,
-                                       copernicus_prefix=copernicus_data_prefix,
-                                       start_date=sample_data.date_time,
-                                       rutgers_cell_point=rutgers_cell_point,
-                                       rutgers_prefix=rutgers_data_prefix,
-                                       platform_info=platform_nfo)
-              wq_historical_data.query_data(sample_data.date_time, sample_data.date_time, site_data)
-            except Exception, e:
-              if logger:
-                logger.exception(e)
-              sys.exit(-1)
+              sample_recs = samples_collection[site.name]
+            except (KeyError, Exception) as e:
+              logger.exception(e)
+            else:
+              sample_recs.sort(key=lambda x: x.date_time, reverse=False)
+              auto_num = 1
+              for sample_data in sample_recs:
+                start_date = sample_data.date_time
+                try:
+                  wq_date_time_local = sample_data.date_time.astimezone(est_tz)
+                  site_data = OrderedDict([
+                    ('autonumber', auto_num),
+                    ('station_name', site.name),
+                    ('station_desc', site.description),
+                    ('sample_datetime', wq_date_time_local),
+                    ('sample_datetime_utc', sample_data.date_time),
+                    ('enterococcus_value', sample_data.entero_ssm),
+                  ])
+                  wq_historical_data.reset(site=site,
+                                           tide_station=tide_station,
+                                           tide_offset_params=tide_offset_settings,
+                                           hycom_prefix=hycom_data_prefix,
+                                           copernicus_prefix=copernicus_data_prefix,
+                                           start_date=sample_data.date_time,
+                                           rutgers_cell_point=rutgers_cell_point,
+                                           rutgers_prefix=rutgers_data_prefix,
+                                           platform_info=platform_nfo)
+                  wq_historical_data.query_data(sample_data.date_time, sample_data.date_time, site_data)
 
+                  header_buf = []
+                  data = []
+                  for key in site_data:
+                    if write_header:
+                      header_buf.append(key)
+                    if site_data[key] != wq_defines.NO_DATA:
+                      data.append(str(site_data[key]))
+                    else:
+                      data.append("")
+                  if write_header:
+                    site_data_file.write(",".join(header_buf))
+                    site_data_file.write('\n')
+                    header_buf[:]
+                    write_header = False
+
+                  site_data_file.write(",".join(data))
+                  site_data_file.write('\n')
+                  site_data_file.flush()
+                  data[:]
+
+                  auto_num += 1
+                except Exception, e:
+                  if logger:
+                    logger.exception(e)
+                  sys.exit(-1)
     """
     site_data = OrderedDict([('autonumber', 1),
                              ('station_name', row['SPLocation']),

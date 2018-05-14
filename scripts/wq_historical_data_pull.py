@@ -440,7 +440,7 @@ def process_tide_data(**kwargs):
                            tide_output_file,
                            1,
                            log_conf_file,
-                           True)
+                           False)
 
   logger.debug("Finished process_tide_data in %f seconds" % (time.time()-start_time))
 
