@@ -142,13 +142,18 @@ def parse_files(**kwargs):
 
         json_results_file = os.path.join(output_directory, 'kdh_beach_advisories.json')
         logger.debug("Creating beach advisories file: %s" % (json_results_file))
-        current_advisories = wq_advisories_file(wq_sites)
-        current_advisories.create_file(json_results_file, wq_data_collection)
-
-        for site in wq_sites:
-          logger.debug("Creating site: %s advisories file" % (site.name))
-          site_advisories = wq_station_advisories_file(site)
-          site_advisories.create_file(output_directory, wq_data_collection)
+        try:
+          current_advisories = wq_advisories_file(wq_sites)
+          current_advisories.create_file(json_results_file, wq_data_collection)
+        except Exception as e:
+          logger.exception(e)
+        try:
+          for site in wq_sites:
+            logger.debug("Creating site: %s advisories file" % (site.name))
+            site_advisories = wq_station_advisories_file(site)
+            site_advisories.create_file(output_directory, wq_data_collection)
+        except Exception as e:
+          logger.exception(e)
         """
         for wq_data_key in wq_data_collection:
           wq_data = wq_data_collection[wq_data_key]
