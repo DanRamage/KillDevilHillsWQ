@@ -141,12 +141,20 @@ def parse_files(**kwargs):
         parse_excel_data(os.path.join(src_data_directory,file), monitoring_sites, wq_data_collection)
 
         json_results_file = os.path.join(output_directory, 'kdh_beach_advisories.json')
-        current_advisories = wq_advisories_file(wq_sites)
-        current_advisories.create_file(json_results_file, wq_data_collection)
-        for site in wq_sites:
-          site_advisories = wq_station_advisories_file(site)
-          site_advisories.create_file(output_directory, wq_data_collection)
-
+        logger.debug("Creating beach advisories file: %s" % (json_results_file))
+        try:
+          current_advisories = wq_advisories_file(wq_sites)
+          current_advisories.create_file(json_results_file, wq_data_collection)
+        except Exception as e:
+          logger.exception(e)
+        try:
+          for site in wq_sites:
+            logger.debug("Creating site: %s advisories file" % (site.name))
+            site_advisories = wq_station_advisories_file(site)
+            site_advisories.create_file(output_directory, wq_data_collection)
+        except Exception as e:
+          logger.exception(e)
+        """
         for wq_data_key in wq_data_collection:
           wq_data = wq_data_collection[wq_data_key]
           wq_data.sort(key=lambda x: x.date_time, reverse=True)
@@ -161,6 +169,7 @@ def parse_files(**kwargs):
               site_file.write("\n")
             for data_rec in wq_data:
               site_file.write('%s,%s,%s,%s,%s\n' % (data_rec.site_id, data_rec.station, data_rec.date_time.strftime('%Y-%m-%d %H:%M:%S'), str(data_rec.entero_ssm), str(data_rec.entero_gm)))
+        """
     except Exception as e:
       logger.exception(e)
   return
@@ -255,13 +264,15 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       self.source_directory = plugin_details.get('Settings', 'download_directory')
       self.sample_site_directory = plugin_details.get('Settings', 'sample_site_directory')
       self.boundaries_file = plugin_details.get('Settings', 'boundaries_file')
-      self.boundaries_file = plugin_details.get('Settings', 'sample_sites')
+      self.sample_sites_file = plugin_details.get('Settings', 'sample_sites')
       return True
     except Exception as e:
       logger.exception(e)
     return False
 
   def run(self):
+    logger = None
+    start_time = time.time()
     try:
 
       self.logging_client_cfg['disable_existing_loggers'] = True
@@ -269,28 +280,33 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       logger = logging.getLogger(self.__class__.__name__)
       logger.debug("run started.")
 
+      try:
+        wq_sites = wq_sample_sites()
+        if wq_sites.load_sites(file_name=self.sample_sites_file, boundary_file=self.boundaries_file):
+
+          start_year = datetime.now().date().year
+
+          download_historical_sample_data(output_directory=self.source_directory,
+                                          url=self.base_url,
+                                          start_year=start_year,
+                                          end_year=start_year - 1)
+
+          parse_files(sample_sites=wq_sites,
+                      src_data_directory=self.source_directory,
+                      output_directory=self.sample_site_directory)
+        else:
+          logger.error("Failed to load sites file: %s %s" % (self.sample_sites_file, self.boundaries_file))
+
+      except (IOError, Exception) as e:
+        if (logger):
+          logger.exception(e)
+
+      logger.debug("run finished in %f seconds" % (time.time()-start_time))
     except ConfigParser.Error, e:
       print("No log configuration file given, logging disabled.")
     except Exception,e:
       import traceback
       traceback.print_exc(e)
       sys.exit(-1)
-    try:
-      wq_sites = wq_sample_sites()
-      wq_sites.load_sites(file_name=self.boundaries_file, boundary_file=self.boundaries_file)
-
-      start_year = datetime.now().date().year
-      """
-      download_historical_sample_data(output_directory=self.source_directory,
-                                      url=self.base_url,
-                                      start_year=start_year,
-                                      end_year=start_year-1)
-      """
-      parse_files(sample_sites = wq_sites,
-                  src_data_directory=self.source_directory,
-                  output_directory=self.sample_site_directory)
-    except (IOError,Exception) as e:
-      if(logger):
-        logger.exception(e)
 
     return
