@@ -1,7 +1,7 @@
 [Core]
 Name = Kill Devil Hills Prediction Plugin
 Module = kdh_prediction_plugin
-Ini=/home/xeniaprod/scripts/NorthCarolina-OuterBanks/config/kdh_prediction_engine.ini
+Ini=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini
 
 [Documentation]
 Author = Dan Ramage
