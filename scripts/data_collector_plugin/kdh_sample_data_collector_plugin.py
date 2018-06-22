@@ -280,12 +280,12 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       wq_sites.load_sites(file_name=self.boundaries_file, boundary_file=self.boundaries_file)
 
       start_year = datetime.now().date().year
-      """
+
       download_historical_sample_data(output_directory=self.source_directory,
                                       url=self.base_url,
                                       start_year=start_year,
                                       end_year=start_year-1)
-      """
+
       parse_files(sample_sites = wq_sites,
                   src_data_directory=self.source_directory,
                   output_directory=self.sample_site_directory)
