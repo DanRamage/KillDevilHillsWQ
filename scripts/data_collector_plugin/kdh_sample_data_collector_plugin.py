@@ -264,7 +264,7 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       self.source_directory = plugin_details.get('Settings', 'download_directory')
       self.sample_site_directory = plugin_details.get('Settings', 'sample_site_directory')
       self.boundaries_file = plugin_details.get('Settings', 'boundaries_file')
-      self.boundaries_file = plugin_details.get('Settings', 'sample_sites')
+      self.sample_sites_file = plugin_details.get('Settings', 'sample_sites')
       return True
     except Exception as e:
       logger.exception(e)
@@ -286,7 +286,7 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       sys.exit(-1)
     try:
       wq_sites = wq_sample_sites()
-      wq_sites.load_sites(file_name=self.boundaries_file, boundary_file=self.boundaries_file)
+      wq_sites.load_sites(file_name=self.sample_sites_file, boundary_file=self.boundaries_file)
 
       start_year = datetime.now().date().year
 
