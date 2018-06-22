@@ -11,6 +11,6 @@ Description = Requests the sample data and station metadata from NC.
 [Settings]
 url=https://reports.ncdenr.org/BOE/OpenDocument/opendoc/CrystalReports/viewrpt.cwr?
 download_directory=/home/xeniaprod/scripts/KillDevilHillsWQ/data/sampling_data/source_files
-sample_site_directory=/home/xeniaprod/scripts/KillDevilHillsWQ/data/sampling_data/site_data
+sample_site_directory=/mnt/wq_feeds/northcarolina/killdevilhills/monitorstations
 boundaries_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kill_devil_hills_boundaries.csv
 sample_sites=/home/xeniaprod/scripts/KillDevilHillsWQ/config/sample_sites.csv
