@@ -286,18 +286,21 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       sys.exit(-1)
     try:
       wq_sites = wq_sample_sites()
-      wq_sites.load_sites(file_name=self.sample_sites_file, boundary_file=self.boundaries_file)
+      if wq_sites.load_sites(file_name=self.sample_sites_file, boundary_file=self.boundaries_file):
 
-      start_year = datetime.now().date().year
+        start_year = datetime.now().date().year
 
-      download_historical_sample_data(output_directory=self.source_directory,
-                                      url=self.base_url,
-                                      start_year=start_year,
-                                      end_year=start_year-1)
+        download_historical_sample_data(output_directory=self.source_directory,
+                                        url=self.base_url,
+                                        start_year=start_year,
+                                        end_year=start_year-1)
 
-      parse_files(sample_sites = wq_sites,
-                  src_data_directory=self.source_directory,
-                  output_directory=self.sample_site_directory)
+        parse_files(sample_sites = wq_sites,
+                    src_data_directory=self.source_directory,
+                    output_directory=self.sample_site_directory)
+      else:
+        logger.error("Failed to load sites file: %s %s" % (self.sample_sites_file, self.boundaries_file))
+
     except (IOError,Exception) as e:
       if(logger):
         logger.exception(e)
