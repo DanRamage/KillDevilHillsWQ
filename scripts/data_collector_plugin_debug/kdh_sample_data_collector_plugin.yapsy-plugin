@@ -1,0 +1,16 @@
+[Core]
+Name = KDH Sample Data Collector
+Module = kdh_sample_data_collector_plugin
+
+[Documentation]
+Author = Dan Ramage
+Version = 0.1
+Website = http://howsthebeach.org
+Description = Requests the sample data and station metadata from NC.
+
+[Settings]
+url=https://reports.ncdenr.org/BOE/OpenDocument/opendoc/CrystalReports/viewrpt.cwr?
+download_directory=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/data/sampling_data/source_files
+sample_site_directory=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/data/sampling_data/site_data
+boundaries_file=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kill_devil_hills_boundaries.csv
+sample_sites=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/sample_sites.csv
