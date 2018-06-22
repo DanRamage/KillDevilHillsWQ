@@ -262,7 +262,7 @@ def main():
 
     logger = None
     use_logging = False
-    logConfFile = config_file.get('logging', 'predition_engine')
+    logConfFile = config_file.get('logging', 'prediction_engine')
     if logConfFile:
       logging.config.fileConfig(logConfFile)
       logger = logging.getLogger(__name__)
