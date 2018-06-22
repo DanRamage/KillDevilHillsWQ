@@ -141,12 +141,15 @@ def parse_files(**kwargs):
         parse_excel_data(os.path.join(src_data_directory,file), monitoring_sites, wq_data_collection)
 
         json_results_file = os.path.join(output_directory, 'kdh_beach_advisories.json')
+        logger.debug("Creating beach advisories file: %s" % (json_results_file))
         current_advisories = wq_advisories_file(wq_sites)
         current_advisories.create_file(json_results_file, wq_data_collection)
+
         for site in wq_sites:
+          logger.debug("Creating site: %s advisories file" % (site.name))
           site_advisories = wq_station_advisories_file(site)
           site_advisories.create_file(output_directory, wq_data_collection)
-
+        """
         for wq_data_key in wq_data_collection:
           wq_data = wq_data_collection[wq_data_key]
           wq_data.sort(key=lambda x: x.date_time, reverse=True)
@@ -161,6 +164,7 @@ def parse_files(**kwargs):
               site_file.write("\n")
             for data_rec in wq_data:
               site_file.write('%s,%s,%s,%s,%s\n' % (data_rec.site_id, data_rec.station, data_rec.date_time.strftime('%Y-%m-%d %H:%M:%S'), str(data_rec.entero_ssm), str(data_rec.entero_gm)))
+        """
     except Exception as e:
       logger.exception(e)
   return
