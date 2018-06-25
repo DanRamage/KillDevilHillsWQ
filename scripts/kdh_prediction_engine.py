@@ -98,8 +98,8 @@ class kdh_prediction_engine(wq_prediction_engine):
     test_list = []
     # Get the sites test configuration ini, then build the test objects.
     try:
-      entero_lo_limit = config_file.getint('limits', 'limit_lo')
-      entero_hi_limit = config_file.getint('limits', 'limit_hi')
+      entero_lo_limit = config_file.getint('entero_limits', 'limit_lo')
+      entero_hi_limit = config_file.getint('entero_limits', 'limit_hi')
     except ConfigParser.Error, e:
       if logger:
         logger.exception(e)
