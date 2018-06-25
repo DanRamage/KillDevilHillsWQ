@@ -104,14 +104,15 @@ class kdh_prediction_engine(wq_prediction_engine):
       if logger:
         logger.exception(e)
     else:
-      for site in wq_sites:
-        if site.name in self.bacteria_sample_data:
-          results = self.bacteria_sample_data[site.name]
-          for result in results:
-            test_obj = bacteria_sample_test(site.name)
-            test_obj.set_category_limits(entero_lo_limit, entero_hi_limit)
-            test_obj.runTest(result.value, result.date_time)
-            test_list.append(test_obj)
+      if self.bacteria_sample_data is not None:
+        for site in wq_sites:
+          if site.name in self.bacteria_sample_data:
+            results = self.bacteria_sample_data[site.name]
+            for result in results:
+              test_obj = bacteria_sample_test(site.name)
+              test_obj.set_category_limits(entero_lo_limit, entero_hi_limit)
+              test_obj.runTest(result.value, result.date_time)
+              test_list.append(test_obj)
 
     return test_list
 
