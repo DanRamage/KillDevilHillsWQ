@@ -10,6 +10,7 @@ import traceback
 import time
 import optparse
 import ConfigParser
+from collections import OrderedDict
 
 from yapsy.PluginManager import PluginManager
 from multiprocessing import Queue
@@ -23,7 +24,7 @@ from wq_prediction_engine import wq_prediction_engine
 from wq_sites import wq_sample_sites
 #from wq_sample_data_collector_plugin import wq_sample_data_collector_plugin
 from data_result_types import data_result_types
-
+from kdh_wq_data import kdh_wq_data
 
 class bacteria_sample_test(predictionTest):
   def __init__(self, name):
@@ -119,6 +120,8 @@ class kdh_prediction_engine(wq_prediction_engine):
   def run_wq_models(self, **kwargs):
     today_date = datetime.now()
     try:
+
+      begin_date = kwargs['begin_date']
       config_file = ConfigParser.RawConfigParser()
       config_file.read(kwargs['config_file_name'])
 
@@ -127,24 +130,81 @@ class kdh_prediction_engine(wq_prediction_engine):
       wq_sites = wq_sample_sites()
       wq_sites.load_sites(file_name=sites_location_file, boundary_file=boundaries_location_file)
 
-      enable_data_collector_plugins = config_file.getboolean('data_collector_plugins', 'enable_plugins')
-      data_collector_plugin_directories=config_file.get('data_collector_plugins', 'plugin_directories').split(',')
-      if enable_data_collector_plugins:
-        self.collect_data(data_collector_plugin_directories=data_collector_plugin_directories)
-
-      test_list = self.build_test_objects(config_file, wq_sites)
-
       enable_output_plugins = config_file.getboolean('output_plugins', 'enable_plugins')
       output_plugin_dirs=config_file.get('output_plugins', 'plugin_directories').split(',')
 
-      #email_settings_ini = config_file.get('email_settings', 'settings_ini')
-      #email_ini_cfg = ConfigParser.RawConfigParser()
-      #email_ini_cfg.read(email_settings_ini)
+      enable_data_collector_plugins = config_file.getboolean('data_collector_plugins', 'enable_plugins')
+      data_collector_plugin_directories = config_file.get('data_collector_plugins', 'plugin_directories').split(',')
 
     except (ConfigParser.Error, Exception) as e:
       self.logger.exception(e)
     else:
       try:
+        test_list = self.build_test_objects(config_file, wq_sites)
+
+        #Run any data collector plugins we have.
+        if enable_data_collector_plugins:
+          self.collect_data(data_collector_plugin_directories=data_collector_plugin_directories,
+                            begin_date=begin_date)
+
+        site_data = OrderedDict()
+        total_time = 0
+        tide_offsets = []
+        reset_site_specific_data_only = True
+        wq_data = kdh_wq_data(config_file=kwargs['config_file_name'])
+
+        for site in wq_sites:
+          try:
+            #Get site specific settings.
+            hycom_data_prefix = config_file.get(site.name, 'hycom_prefix')
+            copernicus_data_prefix = config_file.get(site.name, 'copernicus_prefix')
+            rutgers_data_prefix = config_file.get(site.name, 'rutgers_prefix')
+            rutgers_cell_point = tuple(
+              float(pt) for pt in config_file.get(site.name, 'rutgers_cell_loc').split(','))
+            # Get the platforms the site will use
+            platforms = config_file.get(site.name, 'platforms').split(',')
+            platform_nfo = []
+
+            for platform in platforms:
+              obs_uoms = config_file.get(platform, 'observation').split(';')
+              obs_uom_nfo = []
+              for nfo in obs_uoms:
+                obs, uom = nfo.split(',')
+                obs_uom_nfo.append({'observation': obs,
+                                    'uom': uom})
+              platform_nfo.append({'platform_handle': config_file.get(platform, 'handle'),
+                                   'observations': obs_uom_nfo})
+
+            offset_tide_station = config_file.get(site.name, 'offset_tide_station')
+            offset_param = "%s_tide_data" % (offset_tide_station)
+            # We use the virtual tide sites as there no stations near the sites.
+            tide_station = config_file.get(site.name, 'tide_station')
+            tide_station_settings = {
+              'tide_station': tide_station,
+              'offset_tide_station': config_file.get(offset_param, 'station_id'),
+              'hi_tide_time_offset': config_file.getint(offset_param, 'hi_tide_time_offset'),
+              'lo_tide_time_offset': config_file.getint(offset_param, 'lo_tide_time_offset'),
+              'hi_tide_height_offset': config_file.getfloat(offset_param, 'hi_tide_height_offset'),
+              'lo_tide_height_offset': config_file.getfloat(offset_param, 'lo_tide_height_offset')
+            }
+          except ConfigParser.Error as e:
+            self.logger.exception(e)
+          else:
+            wq_data.reset(site=site,
+                           tide_station=tide_station,
+                           tide_offset_params=tide_station_settings,
+                           hycom_prefix=hycom_data_prefix,
+                           copernicus_prefix=copernicus_data_prefix,
+                           start_date=begin_date,
+                           rutgers_cell_point=rutgers_cell_point,
+                           rutgers_prefix=rutgers_data_prefix,
+                           platform_info=platform_nfo)
+
+            site_data['station_name'] = site.name
+            wq_data.query_data(begin_date,
+                               begin_date,
+                               site_data)
+
         if len(test_list):
           sample_date = None
           failed_sites = []
@@ -193,7 +253,8 @@ class kdh_prediction_engine(wq_prediction_engine):
       for plugin in simplePluginManager.getAllPlugins():
         self.logger.info("Starting plugin: %s" % (plugin.name))
         if plugin.plugin_object.initialize_plugin(details=plugin.details,
-                                                  queue=output_queue):
+                                                  queue=output_queue,
+                                                  begin_date=kwargs['begin_date']):
           plugin.plugin_object.start()
         else:
           self.logger.error("Failed to initialize plugin: %s" % (plugin.name))

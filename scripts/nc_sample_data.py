@@ -30,3 +30,6 @@ class nc_wq_sample_data(wq_sample_data):
   @entero_ssm.setter
   def entero_ssm(self, value):
     self._entero_ssm = value
+
+
+
