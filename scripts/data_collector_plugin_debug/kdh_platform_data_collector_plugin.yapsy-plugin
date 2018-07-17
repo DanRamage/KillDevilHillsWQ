@@ -10,3 +10,4 @@ Description = Requests the sample data and station metadata from NC.
 
 [Settings]
 ini_file=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kdh_prediction_engine_debug.ini
+temp_directory=/Users/danramage/tmp
