@@ -30,6 +30,9 @@ from stats import calcAvgSpeedAndDir
 
 
 from wqDatabase import wqDB
+from xeniaSQLiteAlchemy import xeniaAlchemy as sqliteAlchemy
+from xeniaSQLiteAlchemy import multi_obs
+
 
 from date_time_utils import *
 
@@ -84,7 +87,6 @@ class kdh_wq_data(wq_data):
 
       copernicus_file = config_file.get('copernicus_model_data', 'datafile')
 
-      tide_file_name = config_file.get('tide_station', 'tide_file')
 
     except (ConfigParser.Error, Exception) as e:
       self.logger.exception(e)
@@ -126,12 +128,6 @@ class kdh_wq_data(wq_data):
       #make sure we get the ocean cell.
       self.rutgers_cell_pt = None
 
-      try:
-        self.tide_data_obj = tide_data_file_ex()
-        self.tide_data_obj.open(tide_file_name)
-      except (IOError, Exception) as e:
-        self.logger.exception(e)
-        raise
       if self.logger:
         self.logger.debug("Connection to xenia db: %s" % (xenia_database_name))
       self.nexrad_db = wqDB(xenia_database_name, type(self).__name__)
@@ -140,12 +136,25 @@ class kdh_wq_data(wq_data):
         password_config_file = config_file.get('password_config', 'settings_ini')
         pwd_config_file = ConfigParser.RawConfigParser()
         pwd_config_file.read(password_config_file)
+
+        xenia_obs_db_name = config_file.get('database', 'name')
+
+        self.xenia_obs_db = sqliteAlchemy()
+        self.xenia_obs_db.connectDB(databaseType='sqlite',
+                           dbHost=xenia_obs_db_name,
+                           dbUser=None,
+                           dbPwd=None,
+                           dbName=None,
+                           printSQL=False)
+
+        """
         xenia_obs_db_type = 'postgres'
         xenia_obs_db_user = pwd_config_file.get('xenia_observation_database', 'user')
         xenia_obs_db_password = pwd_config_file.get('xenia_observation_database', 'password')
         xenia_obs_db_host = pwd_config_file.get('xenia_observation_database', 'host')
         xenia_obs_db_name = pwd_config_file.get('xenia_observation_database', 'database')
         # Connect to the xenia database we use for observations aggregation.
+        
         self.xenia_obs_db = xeniaAlchemy()
         if self.xenia_obs_db.connectDB(xenia_obs_db_type, xenia_obs_db_user,
                                        xenia_obs_db_password, xenia_obs_db_host,
@@ -155,6 +164,7 @@ class kdh_wq_data(wq_data):
         else:
           self.logger.error(
             "Unable to connect to DB: %s at %s." % (xenia_obs_db_name, xenia_obs_db_host))
+        """
       except Exception, e:
         self.logger.exception(e)
         raise
@@ -289,6 +299,32 @@ class kdh_wq_data(wq_data):
   def initialize_return_data(self, wq_tests_data):
     if self.logger:
       self.logger.debug("Creating and initializing data dict.")
+
+
+      for tide_offset in self.tide_offset_settings:
+        # Build variables for the base tide station. Only add it if we
+        #don't already have it in the data dictionary.
+        var_name = 'tide_range_%s' % (tide_offset['tide_station'])
+        if var_name not in wq_tests_data:
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+          var_name = 'tide_hi_%s' % (tide_offset['tide_station'])
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+          var_name = 'tide_lo_%s' % (tide_offset['tide_station'])
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+          var_name = 'tide_stage_%s' % (tide_offset['tide_station'])
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+
+        # Build variables for the subordinate tide station.Only add it if we
+        #don't already have it in the data dictionary.
+        var_name = 'tide_range_%s' % (tide_offset['offset_tide_station'])
+        if var_name not in wq_tests_data:
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+          var_name = 'tide_hi_%s' % (tide_offset['offset_tide_station'])
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+          var_name = 'tide_lo_%s' % (tide_offset['offset_tide_station'])
+          wq_tests_data[var_name] = wq_defines.NO_DATA
+
+    """  
     #Build variables for the base tide station.
     var_name = 'tide_range_%s' % (self.tide_station)
     wq_tests_data[var_name] = wq_defines.NO_DATA
@@ -306,7 +342,7 @@ class kdh_wq_data(wq_data):
     wq_tests_data[var_name] = wq_defines.NO_DATA
     var_name = 'tide_lo_%s' % (self.tide_offset_settings['tide_station'])
     wq_tests_data[var_name] = wq_defines.NO_DATA
-
+    """
     for platform_nfo in self.platforms_info:
       handle = platform_nfo['platform_handle']
       for obs_nfo in platform_nfo['observations']:

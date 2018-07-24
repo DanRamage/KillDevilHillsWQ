@@ -1,0 +1,13 @@
+[Core]
+Name = WQ JSON File Plugin
+Module = json_output_plugin
+
+[Documentation]
+Author = Dan Ramage
+Version = 0.1
+Website = http://howsthebeach.org
+Description = Kill Devil Hills specific water quality processing.
+
+[Settings]
+json_outfile=/Users/danramage/tmp/wq_feeds/kdh/Predictions.json
+

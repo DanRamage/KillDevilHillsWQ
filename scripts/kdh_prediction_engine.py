@@ -15,16 +15,18 @@ from collections import OrderedDict
 from yapsy.PluginManager import PluginManager
 from multiprocessing import Queue
 
-from wq_prediction_tests import predictionTest,predictionLevels
+from wq_prediction_tests import predictionTest,predictionLevels,wqEquations
 
 from output_plugin import output_plugin
 from data_collector_plugin import data_collector_plugin
 
 from wq_prediction_engine import wq_prediction_engine
 from wq_sites import wq_sample_sites
-#from wq_sample_data_collector_plugin import wq_sample_data_collector_plugin
 from data_result_types import data_result_types
 from kdh_wq_data import kdh_wq_data
+from stats import stats
+from enterococcus_wq_test import EnterococcusPredictionTest,EnterococcusPredictionTestEx
+
 
 class bacteria_sample_test(predictionTest):
   def __init__(self, name):
@@ -93,32 +95,42 @@ class kdh_prediction_engine(wq_prediction_engine):
     A list of models constructed.
   '''
 
-  def build_test_objects(self, config_file, wq_sites):
-    logger = logging.getLogger(__name__)
+  def build_test_objects(self, **kwargs):
+    config_file = kwargs['config_file']
+    site_name = kwargs['site_name']
 
-    test_list = []
-    # Get the sites test configuration ini, then build the test objects.
+    model_list = []
+    #Get the sites test configuration ini, then build the test objects.
     try:
+      test_config_file = config_file.get(site_name, 'prediction_config')
       entero_lo_limit = config_file.getint('entero_limits', 'limit_lo')
       entero_hi_limit = config_file.getint('entero_limits', 'limit_hi')
     except ConfigParser.Error, e:
-      if logger:
-        logger.exception(e)
+        self.logger.exception(e)
     else:
-      if self.bacteria_sample_data is not None:
-        for site in wq_sites:
-          if site.name in self.bacteria_sample_data:
-            results = self.bacteria_sample_data[site.name]
-            for result in results:
-              test_obj = bacteria_sample_test(site.name)
-              test_obj.set_category_limits(entero_lo_limit, entero_hi_limit)
-              test_obj.runTest(result.value, result.date_time)
-              test_list.append(test_obj)
+      self.logger.debug("Site: %s Model Config File: %s" % (site_name, test_config_file))
 
-    return test_list
+      model_config_file = ConfigParser.RawConfigParser()
+      model_config_file.read(test_config_file)
+      #Get the number of prediction models we use for the site.
+      model_count = model_config_file.getint("settings", "model_count")
+      self.logger.debug("Site: %s Model count: %d" % (site_name, model_count))
+
+      for cnt in range(model_count):
+        model_name = model_config_file.get("model_%d" % (cnt+1), "name")
+        model_equation = model_config_file.get("model_%d" % (cnt+1), "formula")
+        self.logger.debug("Site: %s Model name: %s equation: %s" % (site_name, model_name, model_equation))
+
+        test_obj = EnterococcusPredictionTestEx(formula=model_equation,
+                                                site_name=site_name,
+                                                model_name=model_name)
+        test_obj.set_category_limits(entero_lo_limit, entero_hi_limit)
+        model_list.append(test_obj)
+
+    return model_list
 
   def run_wq_models(self, **kwargs):
-    today_date = datetime.now()
+    prediction_testrun_date = datetime.now()
     try:
 
       begin_date = kwargs['begin_date']
@@ -140,7 +152,6 @@ class kdh_prediction_engine(wq_prediction_engine):
       self.logger.exception(e)
     else:
       try:
-        test_list = self.build_test_objects(config_file, wq_sites)
 
         #Run any data collector plugins we have.
         if enable_data_collector_plugins:
@@ -153,84 +164,103 @@ class kdh_prediction_engine(wq_prediction_engine):
         reset_site_specific_data_only = True
         wq_data = kdh_wq_data(config_file=kwargs['config_file_name'])
 
+        site_model_ensemble = []
+        tide_offsets = []
+
         for site in wq_sites:
           try:
-            #Get site specific settings.
-            hycom_data_prefix = config_file.get(site.name, 'hycom_prefix')
-            copernicus_data_prefix = config_file.get(site.name, 'copernicus_prefix')
-            rutgers_data_prefix = config_file.get(site.name, 'rutgers_prefix')
-            rutgers_cell_point = tuple(
-              float(pt) for pt in config_file.get(site.name, 'rutgers_cell_loc').split(','))
-            # Get the platforms the site will use
-            platforms = config_file.get(site.name, 'platforms').split(',')
-            platform_nfo = []
-
-            for platform in platforms:
-              obs_uoms = config_file.get(platform, 'observation').split(';')
-              obs_uom_nfo = []
-              for nfo in obs_uoms:
-                obs, uom = nfo.split(',')
-                obs_uom_nfo.append({'observation': obs,
-                                    'uom': uom})
-              platform_nfo.append({'platform_handle': config_file.get(platform, 'handle'),
-                                   'observations': obs_uom_nfo})
-
-            offset_tide_station = config_file.get(site.name, 'offset_tide_station')
-            offset_param = "%s_tide_data" % (offset_tide_station)
-            # We use the virtual tide sites as there no stations near the sites.
-            tide_station = config_file.get(site.name, 'tide_station')
-            tide_station_settings = {
-              'tide_station': tide_station,
-              'offset_tide_station': config_file.get(offset_param, 'station_id'),
-              'hi_tide_time_offset': config_file.getint(offset_param, 'hi_tide_time_offset'),
-              'lo_tide_time_offset': config_file.getint(offset_param, 'lo_tide_time_offset'),
-              'hi_tide_height_offset': config_file.getfloat(offset_param, 'hi_tide_height_offset'),
-              'lo_tide_height_offset': config_file.getfloat(offset_param, 'lo_tide_height_offset')
-            }
-          except ConfigParser.Error as e:
+            # Get all the models used for the particular sample site.
+            model_list = self.build_test_objects(config_file=config_file, site_name=site.name)
+            if len(model_list):
+              # Create the container for all the models.
+              site_equations = wqEquations(site.name, model_list, True)
+            else:
+              self.logger.error("No models found for site: %s" % (site.name))
+          except (ConfigParser.Error, Exception) as e:
             self.logger.exception(e)
           else:
-            wq_data.reset(site=site,
-                           tide_station=tide_station,
-                           tide_offset_params=tide_station_settings,
-                           hycom_prefix=hycom_data_prefix,
-                           copernicus_prefix=copernicus_data_prefix,
-                           start_date=begin_date,
-                           rutgers_cell_point=rutgers_cell_point,
-                           rutgers_prefix=rutgers_data_prefix,
-                           platform_info=platform_nfo)
+            try:
+              #Get site specific settings.
+              hycom_data_prefix = config_file.get(site.name, 'hycom_prefix')
+              copernicus_data_prefix = config_file.get(site.name, 'copernicus_prefix')
+              rutgers_data_prefix = config_file.get(site.name, 'rutgers_prefix')
+              rutgers_cell_point = tuple(
+                float(pt) for pt in config_file.get(site.name, 'rutgers_cell_loc').split(','))
+              # Get the platforms the site will use
+              platforms = config_file.get(site.name, 'platforms').split(',')
+              platform_nfo = []
 
-            site_data['station_name'] = site.name
-            wq_data.query_data(begin_date,
-                               begin_date,
-                               site_data)
+              for platform in platforms:
+                obs_uoms = config_file.get(platform, 'observation').split(';')
+                obs_uom_nfo = []
+                for nfo in obs_uoms:
+                  obs, uom = nfo.split(',')
+                  obs_uom_nfo.append({'observation': obs,
+                                      'uom': uom})
+                platform_nfo.append({'platform_handle': config_file.get(platform, 'handle'),
+                                     'observations': obs_uom_nfo})
 
-        if len(test_list):
-          sample_date = None
-          failed_sites = []
-          sampling_date = today_date - timedelta(hours=24)
-          for test in test_list:
-            if sample_date is None:
-              sample_date = test.test_time
-            if test.test_time.date() == sampling_date.date():
-              if test.predictionLevel.value == predictionLevels.HIGH:
-                for site in wq_sites:
-                  if site.name == test.name:
-                    failed_sites.append({
-                      'test_result':  test,
-                      'wq_site': site
-                    })
-                    break
-          if enable_output_plugins:
-            self.output_results(output_plugin_directories=output_plugin_dirs,
-                                failed_sites = failed_sites,
-                                feedback_email=feedback_email,
-                                sample_date=sample_date)
-        else:
-          self.logger.debug("No sites/data found to create test objects.")
+              offset_tide_station = config_file.get(site.name, 'offset_tide_station')
+              offset_param = "%s_tide_data" % (offset_tide_station)
+              # We use the virtual tide sites as there no stations near the sites.
+              tide_station = config_file.get(site.name, 'tide_station')
+              tide_station_settings = {
+                'tide_station': tide_station,
+                'offset_tide_station': config_file.get(offset_param, 'station_id'),
+                'hi_tide_time_offset': config_file.getint(offset_param, 'hi_tide_time_offset'),
+                'lo_tide_time_offset': config_file.getint(offset_param, 'lo_tide_time_offset'),
+                'hi_tide_height_offset': config_file.getfloat(offset_param, 'hi_tide_height_offset'),
+                'lo_tide_height_offset': config_file.getfloat(offset_param, 'lo_tide_height_offset')
+              }
+              tide_offsets.append(tide_station_settings)
+
+            except ConfigParser.Error as e:
+              self.logger.exception(e)
+            else:
+              wq_data.reset(site=site,
+                             tide_station=tide_station,
+                             tide_offset_params=tide_offsets,
+                             hycom_prefix=hycom_data_prefix,
+                             copernicus_prefix=copernicus_data_prefix,
+                             start_date=begin_date,
+                             rutgers_cell_point=rutgers_cell_point,
+                             rutgers_prefix=rutgers_data_prefix,
+                             platform_info=platform_nfo)
+
+              site_data['station_name'] = site.name
+              wq_data.query_data(begin_date,
+                                 begin_date,
+                                 site_data)
+
+              reset_site_specific_data_only = True
+              site_equations.runTests(site_data)
+              total_test_time = sum(testObj.test_time for testObj in site_equations.tests)
+              self.logger.debug("Site: %s total time to execute models: %f ms" % (site.name, total_test_time * 1000))
+              total_time += total_test_time
+
+              #Calculate some statistics on the entero results. This is making an assumption
+              #that all the tests we are running are calculating the same value, the entero
+              #amount.
+              entero_stats = None
+              if len(site_equations.tests):
+                entero_stats = stats()
+                for test in site_equations.tests:
+                  if test.mlrResult is not None:
+                    entero_stats.addValue(test.mlrResult)
+                entero_stats.doCalculations()
+
+              site_model_ensemble.append({'metadata': site,
+                                          'models': site_equations,
+                                          'statistics': entero_stats,
+                                          'entero_value': None})
+
+        if enable_output_plugins:
+          self.output_results(output_plugin_directories=output_plugin_dirs,
+                              site_model_ensemble=site_model_ensemble,
+                              prediction_date=kwargs['begin_date'],
+                              prediction_run_date=prediction_testrun_date)
       except Exception as e:
         self.logger.exception(e)
-
   def collect_data(self, **kwargs):
     self.logger.info("Begin collect_data")
     try:
@@ -242,7 +272,17 @@ class kdh_prediction_engine(wq_prediction_engine):
 
       # Tell it the default place(s) where to find plugins
       self.logger.debug("Plugin directories: %s" % (kwargs['data_collector_plugin_directories']))
-      logging.getLogger('yapsy').setLevel(logging.DEBUG)
+      #logging.basicConfig(level=logging.DEBUG)
+      #self.logger.setLevel(logging.DEBUG)
+      yapsy_logger = logging.getLogger('yapsy')
+      yapsy_logger.setLevel(logging.DEBUG)
+      #yapsy_logger.parent.level = logging.DEBUG
+      yapsy_logger.disabled = False
+      """
+      sh = logging.StreamHandler(sys.stdout)
+      sh.setLevel(logging.DEBUG)
+      yapsy_logger.addHandler(sh)
+      """
       simplePluginManager.setPluginPlaces(kwargs['data_collector_plugin_directories'])
 
       simplePluginManager.collectPlugins()
@@ -273,7 +313,7 @@ class kdh_prediction_engine(wq_prediction_engine):
       self.logger.info("%d Plugins completed in %f seconds" % (plugin_cnt, time.time() - plugin_start_time))
     except Exception as e:
       self.logger.exception(e)
-
+  """
   def output_results(self, **kwargs):
     self.logger.info("Begin run_output_plugins")
 
@@ -294,7 +334,7 @@ class kdh_prediction_engine(wq_prediction_engine):
     for plugin in simplePluginManager.getAllPlugins():
       self.logger.info("Starting plugin: %s" % (plugin.name))
       if plugin.plugin_object.initialize_plugin(details=plugin.details):
-        plugin.plugin_object.emit(sampling_date=kwargs['sample_date'],
+        plugin.plugin_object.emit(sampling_date=kwargs['prediction_date'],
                                   failed_sites=kwargs['failed_sites'],
                                   feedback_email=kwargs['feedback_email'])
         plugin_cnt += 1
@@ -304,7 +344,7 @@ class kdh_prediction_engine(wq_prediction_engine):
     self.logger.info("Finished collect_data")
 
     return
-
+  """
 def main():
   parser = optparse.OptionParser()
   parser.add_option("-c", "--ConfigFile", dest="config_file",

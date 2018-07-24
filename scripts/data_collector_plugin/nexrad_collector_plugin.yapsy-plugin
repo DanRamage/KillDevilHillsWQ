@@ -1,0 +1,12 @@
+[Core]
+Name = NEXRAD Data Collector Plugin
+Module = nexrad_collector_plugin
+
+[Documentation]
+Author = Dan Ramage
+Version = 0.1
+Website = http://howsthebeach.org
+Description = Kill Devil Hills specific nexrad data processing.
+
+[Settings]
+ini_file=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kdh_prediction_engine_debug.ini

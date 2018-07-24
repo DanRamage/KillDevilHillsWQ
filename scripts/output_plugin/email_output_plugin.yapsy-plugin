@@ -1,0 +1,21 @@
+[Core]
+Name = WQ Email Plugin
+Module = email_output_plugin
+
+[Documentation]
+Author = Dan Ramage
+Version = 0.1
+Website = http://howsthebeach.org
+Description = Kill Devil Hills specific water quality processing.
+
+[Settings]
+mailhost=
+fromaddr=
+toaddrs=
+subject=
+user=
+password=
+results_template=
+results_outfile=
+report_url=
+use_logging=

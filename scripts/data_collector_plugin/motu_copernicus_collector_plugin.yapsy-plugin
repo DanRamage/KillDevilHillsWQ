@@ -1,0 +1,13 @@
+[Core]
+Name = KDH Sample Data Collector
+Module = motu_copernicus_collector_plugin
+
+[Documentation]
+Author = Dan Ramage
+Version = 0.1
+Website = http://howsthebeach.org
+Description = Requests the copernicus model data.
+
+[Settings]
+ini_file=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kdh_prediction_engine_debug.ini
+temp_directory=/Users/danramage/tmp
