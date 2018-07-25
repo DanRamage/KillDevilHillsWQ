@@ -9,4 +9,4 @@ Website = http://howsthebeach.org
 Description = Kill Devil Hills specific nexrad data processing.
 
 [Settings]
-ini_file=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kdh_prediction_engine_debug.ini
+ini_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini

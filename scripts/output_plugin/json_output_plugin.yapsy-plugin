@@ -9,5 +9,5 @@ Website = http://howsthebeach.org
 Description = Kill Devil Hills specific water quality processing.
 
 [Settings]
-json_outfile=/Users/danramage/tmp/wq_feeds/kdh/Predictions.json
+json_outfile=/mnt/wq_feeds/northcarolina/killdevilhills/Predictions.json
 

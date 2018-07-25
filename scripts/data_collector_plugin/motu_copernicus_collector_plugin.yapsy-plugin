@@ -9,5 +9,5 @@ Website = http://howsthebeach.org
 Description = Requests the copernicus model data.
 
 [Settings]
-ini_file=/Users/danramage/Documents/workspace/WaterQuality/NorthCarolina-OuterBanks/config/kdh_prediction_engine_debug.ini
-temp_directory=/Users/danramage/tmp
+ini_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini
+temp_directory=/tmp
