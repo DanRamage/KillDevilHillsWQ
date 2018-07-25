@@ -1,0 +1,13 @@
+[Core]
+Name = KDH Sample Data Collector
+Module = kdh_platform_data_collector_plugin
+
+[Documentation]
+Author = Dan Ramage
+Version = 0.1
+Website = http://howsthebeach.org
+Description = Requests the sample data and station metadata from NC.
+
+[Settings]
+ini_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini
+temp_directory=/tmp
