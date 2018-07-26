@@ -1,5 +1,5 @@
 [Core]
-Name = KDH Sample Data Collector
+Name = KDH Bacteria Sample Data Collector
 Module = kdh_sample_data_collector_plugin
 
 [Documentation]

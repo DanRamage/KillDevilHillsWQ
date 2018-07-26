@@ -1,5 +1,5 @@
 [Core]
-Name = KDH Sample Data Collector
+Name = KDH Platform Data Collector
 Module = kdh_platform_data_collector_plugin
 
 [Documentation]

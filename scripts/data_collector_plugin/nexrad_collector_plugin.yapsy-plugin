@@ -1,5 +1,5 @@
 [Core]
-Name = NEXRAD Data Collector Plugin
+Name = KDH NEXRAD Data Collector Plugin
 Module = nexrad_collector_plugin
 
 [Documentation]

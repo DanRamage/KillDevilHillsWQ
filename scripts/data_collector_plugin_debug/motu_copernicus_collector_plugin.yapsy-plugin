@@ -1,5 +1,5 @@
 [Core]
-Name = KDH Sample Data Collector
+Name = KDH Motu Model Data Collector
 Module = motu_copernicus_collector_plugin
 
 [Documentation]
