@@ -226,7 +226,8 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
     finally:
       if xenia_db is not None:
         xenia_db.disconnect()
-    logger.debug("run finished in %f seconds" % (time.time()-start_time))
+      if logger is not None:
+        logger.debug("run finished in %f seconds" % (time.time()-start_time))
 
     return
 
