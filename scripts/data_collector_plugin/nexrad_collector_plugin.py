@@ -7,6 +7,8 @@ from pytz import timezone
 import ConfigParser
 import traceback
 import time
+from yapsy.IPlugin import IPlugin
+from multiprocessing import Process
 
 from wqXMRGProcessing import wqXMRGProcessing
 
@@ -15,6 +17,9 @@ class nexrad_collector_plugin(data_collector_plugin):
   def initialize_plugin(self, **kwargs):
     #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
+      Process.__init__(self)
+      IPlugin.__init__(self)
+
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
       self.ini_file = self.plugin_details.get('Settings', 'ini_file')

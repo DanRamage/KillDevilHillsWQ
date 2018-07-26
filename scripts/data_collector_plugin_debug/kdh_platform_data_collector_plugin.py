@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from pytz import timezone
 import csv
 import traceback
+from yapsy.IPlugin import IPlugin
+from multiprocessing import Process
 
 from wq_sites import wq_sample_sites
 from data_collector_plugin import data_collector_plugin
@@ -163,6 +165,9 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
   def initialize_plugin(self, **kwargs):
     #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
+      Process.__init__(self)
+      IPlugin.__init__(self)
+
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
       self.begin_date = kwargs['begin_date']
