@@ -7,6 +7,8 @@ from pytz import timezone
 import ConfigParser
 import traceback
 import time
+from yapsy.IPlugin import IPlugin
+from multiprocessing import Process
 
 from motuclient import motu_api
 
@@ -14,6 +16,9 @@ class MotoParameters:
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
 class motu_copernicus_collector_plugin(data_collector_plugin):
+  def __init__(self):
+    Process.__init__(self)
+    IPlugin.__init__(self)
 
   def initialize_plugin(self, **kwargs):
     data_collector_plugin.initialize_plugin(self, **kwargs)
@@ -23,6 +28,7 @@ class motu_copernicus_collector_plugin(data_collector_plugin):
       self.ini_file = self.plugin_details.get('Settings', 'ini_file')
       self.begin_date = kwargs['begin_date']
       self.output_directory = self.plugin_details.get('Settings', 'temp_directory')
+      self.log_config = self.plugin_details.get("Settings", "log_config")
       return True
     except Exception as e:
       logger.exception(e)
@@ -31,8 +37,9 @@ class motu_copernicus_collector_plugin(data_collector_plugin):
   def run(self):
     try:
       start_time = time.time()
-      self.logging_client_cfg['disable_existing_loggers'] = True
-      logging.config.dictConfig(self.logging_client_cfg)
+      #self.logging_client_cfg['disable_existing_loggers'] = True
+      #logging.config.dictConfig(self.logging_client_cfg)
+      logging.config.fileConfig(self.log_config)
       logger = logging.getLogger(self.__class__.__name__)
       logger.debug("run started.")
       utc_tz = timezone('UTC')
@@ -76,13 +83,10 @@ class motu_copernicus_collector_plugin(data_collector_plugin):
       motu_api.execute_request(motu_parms)
 
     except (ConfigParser.Error, Exception) as e:
-      traceback.print_exc(e)
       if logger is not None:
         logger.exception(e)
-    else:
-      try:
-        i=0
-      except Exception as e:
-        logger.exception(e)
+      else:
+        traceback.print_exc(e)
+    finally:
       logger.debug("run finished in %f seconds" % (time.time()-start_time))
     return

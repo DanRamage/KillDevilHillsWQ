@@ -11,3 +11,4 @@ Description = Requests the copernicus model data.
 [Settings]
 ini_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini
 temp_directory=/tmp
+log_config=/home/xeniaprod/scripts/KillDevilHillsWQ/config/logconf/kdh_motu_data_plugin.conf
