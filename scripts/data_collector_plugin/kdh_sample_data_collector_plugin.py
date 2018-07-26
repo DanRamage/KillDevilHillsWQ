@@ -7,6 +7,10 @@ import time
 import xlrd
 from datetime import datetime
 from pytz import timezone
+from yapsy.IPlugin import IPlugin
+from multiprocessing import Process
+import traceback
+
 from wq_output_results import wq_sample_data,wq_samples_collection,wq_advisories_file,wq_station_advisories_file
 from nc_sample_data import nc_wq_sample_data
 
@@ -30,7 +34,8 @@ prompt4=*&
 prompt5=Public
 """
 def download_historical_sample_data(**kwargs):
-  logger = logging.getLogger(__name__)
+  logger=logging.getLogger(kwargs['logger_name'])
+
   func_start_time = time.time()
   start_year = kwargs['start_year']
   end_year = kwargs['end_year']
@@ -80,7 +85,7 @@ def download_historical_sample_data(**kwargs):
   return
 
 def parse_files(**kwargs):
-  logger=logging.getLogger(__name__)
+  logger=logging.getLogger(kwargs['logger_name'])
   wq_sites = kwargs['sample_sites']
   src_data_directory = kwargs['src_data_directory']
   output_directory = kwargs['output_directory']
@@ -138,7 +143,7 @@ def parse_files(**kwargs):
       path,ext = os.path.splitext(file)
       if ext == '.xls':
         wq_data_collection = wq_samples_collection()
-        parse_excel_data(os.path.join(src_data_directory,file), monitoring_sites, wq_data_collection)
+        parse_excel_data(os.path.join(src_data_directory,file), monitoring_sites, wq_data_collection, kwargs['logger_name'])
 
         json_results_file = os.path.join(output_directory, 'kdh_beach_advisories.json')
         logger.debug("Creating beach advisories file: %s" % (json_results_file))
@@ -174,8 +179,9 @@ def parse_files(**kwargs):
       logger.exception(e)
   return
 
-def parse_excel_data(file, monitoring_sites, wq_data_collection):
-  logger = logging.getLogger(__name__)
+def parse_excel_data(file, monitoring_sites, wq_data_collection, logger_name):
+  logger=logging.getLogger(logger_name)
+
   logger.debug("Parsing file: %s" % (file))
   wb = xlrd.open_workbook(filename = file)
   sheet = wb.sheet_by_name('Sheet1')
@@ -254,9 +260,12 @@ def parse_excel_data(file, monitoring_sites, wq_data_collection):
   return
 
 class kdh_sample_data_collector_plugin(data_collector_plugin):
+  def __init__(self):
+    Process.__init__(self)
+    IPlugin.__init__(self)
 
   def initialize_plugin(self, **kwargs):
-    data_collector_plugin.initialize_plugin(self, **kwargs)
+    #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
       logger = logging.getLogger(self.__class__.__name__)
       plugin_details = kwargs['details']
@@ -265,6 +274,8 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
       self.sample_site_directory = plugin_details.get('Settings', 'sample_site_directory')
       self.boundaries_file = plugin_details.get('Settings', 'boundaries_file')
       self.sample_sites_file = plugin_details.get('Settings', 'sample_sites')
+      self.log_config = plugin_details.get("Settings", "log_config")
+
       return True
     except Exception as e:
       logger.exception(e)
@@ -275,8 +286,9 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
     start_time = time.time()
     try:
 
-      self.logging_client_cfg['disable_existing_loggers'] = True
-      logging.config.dictConfig(self.logging_client_cfg)
+      #self.logging_client_cfg['disable_existing_loggers'] = True
+      #logging.config.dictConfig(self.logging_client_cfg)
+      logging.config.fileConfig(self.log_config)
       logger = logging.getLogger(self.__class__.__name__)
       logger.debug("run started.")
 
@@ -289,24 +301,27 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
           download_historical_sample_data(output_directory=self.source_directory,
                                           url=self.base_url,
                                           start_year=start_year,
-                                          end_year=start_year - 1)
+                                          end_year=start_year - 1,
+                                          logger_name=self.__class__.__name__)
 
           parse_files(sample_sites=wq_sites,
                       src_data_directory=self.source_directory,
-                      output_directory=self.sample_site_directory)
+                      output_directory=self.sample_site_directory,
+                      logger_name=self.__class__.__name__)
         else:
           logger.error("Failed to load sites file: %s %s" % (self.sample_sites_file, self.boundaries_file))
 
       except (IOError, Exception) as e:
-        if (logger):
+        if logger is not None:
           logger.exception(e)
 
-      logger.debug("run finished in %f seconds" % (time.time()-start_time))
-    except ConfigParser.Error, e:
-      print("No log configuration file given, logging disabled.")
     except Exception,e:
-      import traceback
-      traceback.print_exc(e)
-      sys.exit(-1)
+      if logger is not None:
+        logger.exception(e)
+      else:
+        traceback.print_exc(e)
+    finally:
+      if logger is not None:
+        logger.debug("run finished in %f seconds" % (time.time()-start_time))
 
     return

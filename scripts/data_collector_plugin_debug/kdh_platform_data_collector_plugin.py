@@ -161,13 +161,12 @@ nws_obs = [
 ]
 
 class kdh_platform_data_collector_plugin(data_collector_plugin):
+  def __init__(self):
+    Process.__init__(self)
+    IPlugin.__init__(self)
 
   def initialize_plugin(self, **kwargs):
-    #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
-      Process.__init__(self)
-      IPlugin.__init__(self)
-
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
       self.begin_date = kwargs['begin_date']
