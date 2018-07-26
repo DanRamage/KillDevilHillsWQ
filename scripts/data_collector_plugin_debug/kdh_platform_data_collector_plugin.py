@@ -161,14 +161,12 @@ nws_obs = [
 ]
 
 class kdh_platform_data_collector_plugin(data_collector_plugin):
-  def __init__(self):
-    Process.__init__(self)
-    IPlugin.__init__(self)
-    self.plugin_details = None
 
   def initialize_plugin(self, **kwargs):
     #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
+      Process.__init__(self)
+      IPlugin.__init__(self)
 
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
@@ -182,12 +180,15 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def run(self):
     start_time = time.time()
+    logger = None
     try:
       xenia_db = None
       #self.logging_client_cfg['disable_existing_loggers'] = True
       #logging.config.dictConfig(self.logging_client_cfg)
       logging.config.fileConfig(self.log_config)
       logger = logging.getLogger(self.__class__.__name__)
+
+      logger.setLevel(logging.DEBUG)
       logger.debug("run started.")
 
       config_file = ConfigParser.RawConfigParser()
@@ -219,20 +220,22 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
       for site in nos_sites:
         self.get_nos_data(site, nos_obs, self.begin_date, units_conversion, xenia_db)
 
-      logger.debug("run finished in %f seconds" % (time.time()-start_time))
-    except ConfigParser.Error, e:
-      print("No log configuration file given, logging disabled.")
     except Exception,e:
-      traceback.print_exc(e)
-      sys.exit(-1)
+      if logger is not None:
+        logger.exception(e)
+      else:
+        traceback.print_exc(e)
     finally:
       if xenia_db is not None:
         xenia_db.disconnect()
+      if logger is not None:
+        logger.debug("run finished in %f seconds" % (time.time()-start_time))
+
     return
 
   def get_ndbc_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(self.__class__.__name__)
     logger.debug("Starting get_ndbc_data")
 
     row_entry_date = datetime.now()
@@ -354,7 +357,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def get_nos_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(self.__class__.__name__)
     logger.debug("Starting get_nos_data")
 
     row_entry_date = datetime.now()
@@ -507,7 +510,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def get_nws_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(self.__class__.__name__)
     logger.debug("Starting get_nws_data")
 
     row_entry_date = datetime.now()
@@ -621,5 +624,3 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
     return
 
-  def finalize(self):
-    return

@@ -187,6 +187,8 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
       #logging.config.dictConfig(self.logging_client_cfg)
       logging.config.fileConfig(self.log_config)
       logger = logging.getLogger(self.__class__.__name__)
+
+      logger.setLevel(logging.DEBUG)
       logger.debug("run started.")
 
       config_file = ConfigParser.RawConfigParser()
@@ -233,7 +235,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def get_ndbc_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(self.__class__.__name__)
     logger.debug("Starting get_ndbc_data")
 
     row_entry_date = datetime.now()
@@ -355,7 +357,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def get_nos_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(self.__class__.__name__)
     logger.debug("Starting get_nos_data")
 
     row_entry_date = datetime.now()
@@ -508,7 +510,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def get_nws_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(self.__class__.__name__)
     logger.debug("Starting get_nws_data")
 
     row_entry_date = datetime.now()
