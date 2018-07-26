@@ -161,12 +161,14 @@ nws_obs = [
 ]
 
 class kdh_platform_data_collector_plugin(data_collector_plugin):
+  def __init__(self):
+    Process.__init__(self)
+    IPlugin.__init__(self)
+    self.plugin_details = None
 
   def initialize_plugin(self, **kwargs):
     #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
-      Process.__init__(self)
-      IPlugin.__init__(self)
 
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
@@ -181,7 +183,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
   def run(self):
     start_time = time.time()
     try:
-
+      xenia_db = None
       #self.logging_client_cfg['disable_existing_loggers'] = True
       #logging.config.dictConfig(self.logging_client_cfg)
       logging.config.fileConfig(self.log_config)
@@ -224,7 +226,8 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
       traceback.print_exc(e)
       sys.exit(-1)
     finally:
-      xenia_db.disconnect()
+      if xenia_db is not None:
+        xenia_db.disconnect()
     return
 
   def get_ndbc_data(self, site, observations, begin_date, units_coverter, db_obj):
