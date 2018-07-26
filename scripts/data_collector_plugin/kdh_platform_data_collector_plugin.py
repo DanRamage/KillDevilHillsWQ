@@ -180,6 +180,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def run(self):
     start_time = time.time()
+    logger = None
     try:
       xenia_db = None
       #self.logging_client_cfg['disable_existing_loggers'] = True
@@ -217,15 +218,16 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
       for site in nos_sites:
         self.get_nos_data(site, nos_obs, self.begin_date, units_conversion, xenia_db)
 
-      logger.debug("run finished in %f seconds" % (time.time()-start_time))
-    except ConfigParser.Error, e:
-      print("No log configuration file given, logging disabled.")
     except Exception,e:
-      traceback.print_exc(e)
-      sys.exit(-1)
+      if logger is not None:
+        logger.exception(e)
+      else:
+        traceback.print_exc(e)
     finally:
       if xenia_db is not None:
         xenia_db.disconnect()
+    logger.debug("run finished in %f seconds" % (time.time()-start_time))
+
     return
 
   def get_ndbc_data(self, site, observations, begin_date, units_coverter, db_obj):
