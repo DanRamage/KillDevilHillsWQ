@@ -621,3 +621,5 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
 
     return
 
+  def finalize(self):
+    return

@@ -296,6 +296,8 @@ class kdh_prediction_engine(wq_prediction_engine):
                                                   queue=output_queue,
                                                   begin_date=kwargs['begin_date']):
           plugin.plugin_object.start()
+          self.logger.info("Waiting for %s plugin to complete." % (plugin.name))
+          plugin.plugin_object.join()
         else:
           self.logger.error("Failed to initialize plugin: %s" % (plugin.name))
         plugin_cnt += 1
