@@ -10,3 +10,4 @@ Description = Kill Devil Hills specific nexrad data processing.
 
 [Settings]
 ini_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini
+log_config=/home/xeniaprod/scripts/KillDevilHillsWQ/config/logconf/kdh_nexrad_plugin.conf

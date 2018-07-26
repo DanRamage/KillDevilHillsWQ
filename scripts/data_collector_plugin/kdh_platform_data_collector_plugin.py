@@ -161,12 +161,13 @@ nws_obs = [
 class kdh_platform_data_collector_plugin(data_collector_plugin):
 
   def initialize_plugin(self, **kwargs):
-    data_collector_plugin.initialize_plugin(self, **kwargs)
+    #data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
       self.begin_date = kwargs['begin_date']
       self.temp_directory = self.plugin_details.get("Settings", "temp_directory")
+      self.log_config = self.plugin_details.get("Settings", "log_config")
       return True
     except Exception as e:
       logger.exception(e)
@@ -176,8 +177,9 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
     start_time = time.time()
     try:
 
-      self.logging_client_cfg['disable_existing_loggers'] = True
-      logging.config.dictConfig(self.logging_client_cfg)
+      #self.logging_client_cfg['disable_existing_loggers'] = True
+      #logging.config.dictConfig(self.logging_client_cfg)
+      logging.config.fileConfig(self.log_config)
       logger = logging.getLogger(self.__class__.__name__)
       logger.debug("run started.")
 

@@ -10,4 +10,6 @@ Description = Requests the sample data and station metadata from NC.
 
 [Settings]
 ini_file=/home/xeniaprod/scripts/KillDevilHillsWQ/config/kdh_prediction_engine.ini
+log_config=/home/xeniaprod/scripts/KillDevilHillsWQ/config/logconf/kdh_data_collector_plugin.conf
+
 temp_directory=/tmp
