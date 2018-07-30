@@ -91,5 +91,6 @@ class motu_copernicus_collector_plugin(data_collector_plugin):
       else:
         traceback.print_exc(e)
     finally:
-      logger.debug("run finished in %f seconds" % (time.time()-start_time))
+      if logger is not None:
+        logger.debug("run finished in %f seconds" % (time.time()-start_time))
     return
