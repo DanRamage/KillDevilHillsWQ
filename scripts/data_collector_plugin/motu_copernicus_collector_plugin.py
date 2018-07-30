@@ -35,8 +35,9 @@ class motu_copernicus_collector_plugin(data_collector_plugin):
     return False
 
   def run(self):
+    start_time = time.time()
+    logger = None
     try:
-      start_time = time.time()
       #self.logging_client_cfg['disable_existing_loggers'] = True
       #logging.config.dictConfig(self.logging_client_cfg)
       logging.config.fileConfig(self.log_config)
