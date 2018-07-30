@@ -79,6 +79,9 @@ class motu_copernicus_collector_plugin(data_collector_plugin):
         socket_timeout=None
       )
       motu_log = logging.getLogger("motu_api")
+      handlers = logger.handlers
+      for hndlr in handlers:
+        motu_log.addHandler(hndlr)
       motu_log.setLevel(logging.DEBUG)
       motu_api.execute_request(motu_parms)
 
