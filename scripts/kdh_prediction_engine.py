@@ -272,17 +272,11 @@ class kdh_prediction_engine(wq_prediction_engine):
 
       # Tell it the default place(s) where to find plugins
       self.logger.debug("Plugin directories: %s" % (kwargs['data_collector_plugin_directories']))
-      #logging.basicConfig(level=logging.DEBUG)
-      #self.logger.setLevel(logging.DEBUG)
       yapsy_logger = logging.getLogger('yapsy')
       yapsy_logger.setLevel(logging.DEBUG)
       #yapsy_logger.parent.level = logging.DEBUG
       yapsy_logger.disabled = False
-      """
-      sh = logging.StreamHandler(sys.stdout)
-      sh.setLevel(logging.DEBUG)
-      yapsy_logger.addHandler(sh)
-      """
+
       simplePluginManager.setPluginPlaces(kwargs['data_collector_plugin_directories'])
 
       simplePluginManager.collectPlugins()
@@ -291,6 +285,7 @@ class kdh_prediction_engine(wq_prediction_engine):
       plugin_cnt = 0
       plugin_start_time = time.time()
       for plugin in simplePluginManager.getAllPlugins():
+        plugin_start_time = time.time()
         self.logger.info("Starting plugin: %s" % (plugin.name))
         if plugin.plugin_object.initialize_plugin(details=plugin.details,
                                                   queue=output_queue,
@@ -298,6 +293,7 @@ class kdh_prediction_engine(wq_prediction_engine):
           plugin.plugin_object.start()
           self.logger.info("Waiting for %s plugin to complete." % (plugin.name))
           plugin.plugin_object.join()
+          self.logger.info("%s plugin to completed in %f seconds." % (plugin.name, time.time()-plugin_start_time))
         else:
           self.logger.error("Failed to initialize plugin: %s" % (plugin.name))
         plugin_cnt += 1
