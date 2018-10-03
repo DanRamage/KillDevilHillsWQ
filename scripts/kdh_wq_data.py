@@ -440,79 +440,83 @@ class kdh_wq_data(wq_data):
           closest_end_ndx = bisect_left(self.rutgers_time, offset_end)
 
       if closest_start_ndx != -1 and closest_end_ndx != -1:
-        salinity_data = self.rutgers_model.variables['salt'][closest_start_ndx:closest_end_ndx + 1, 0,
-                        self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
-        """
-        with open("/Users/danramage/tmp/kdh_salinity_rutgers_model.csv", "w") as out_file:
-          #i0,i1,j0,j1 = bbox2ij(self.rutgers_model.variables['lon_rho'][:], self.rutgers_model.variables['lat_rho'][:], [-75.728228,-74.985642,35.152562,35.746631])
-          lon_array = self.rutgers_model.variables['lon_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
-          lat_array = self.rutgers_model.variables['lat_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
-
-          #flat_lon_array = lon_array.flatten()
-          #flat_lat_array = lat_array.flatten()
-          lons_i,lons_j = np.shape(lon_array)
-          lats_i, lats_j = np.shape(lat_array)
-          out_file.write("Longitude,Latitude\n")
-          out_file.write("%f,%f\n" % (lon_array[0][0], lat_array[0][0]))
-          out_file.write("%f,%f\n" % (lon_array[0][-1], lat_array[0][-1]))
-          out_file.write("%f,%f\n" % (lon_array[-1][0], lat_array[-1][0]))
-          out_file.write("%f,%f\n" % (lon_array[-1][-1], lat_array[-1][-1]))
-
-        """
         try:
-          fill_value =  self.rutgers_model.variables['salt']._FillValue
-        except Exception as e:
-          fill_value = None
-
-        pt_cell = closestCellFromPt(self.rutgers_cell_pt[0],self.rutgers_cell_pt[1],
-                               self.rutgers_lon_array, self.rutgers_lat_array,
-                               salinity_data[0],
-                               fill_value,
-                               self.rutgers_model.variables['mask_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui])
-
-        adjusted_end_ndx = None
-        for hour in range(24, 48, 24):
-          # Calculate the date we will start at referenced to the beginning_time of the data.
-          begin_delta = (start_date - timedelta(hours=hour)) - model_time
-          # Get the hours count.
-          if self.rutgers_time is None:
-            begin_cnt = begin_delta.total_seconds()
-            # Find the index in the data our days count is closest to.
-            begin_ndx = bisect_left(self.rutgers_ocean_time, begin_cnt)
-          else:
-            begin_cnt = (begin_delta.total_seconds() / (60.0 * 60.0))
-            # Find the index in the data our days count is closest to.
-            begin_ndx = bisect_left(self.rutgers_time, begin_cnt)
-          # Offset indexes from the larger dataset to our subset.
-          adjusted_begin_ndx = begin_ndx - closest_start_ndx
-          if adjusted_end_ndx is None:
-            adjusted_end_ndx = closest_end_ndx - closest_start_ndx
-
-          # Get the last 24 hour average salinity data
-          avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx, int(pt_cell.x), int(pt_cell.y)]
+          salinity_data = self.rutgers_model.variables['salt'][closest_start_ndx:closest_end_ndx + 1, 0,
+                          self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
+        except (IndexError,Exception) as e:
+          self.logger.exception(e)
+        else:
           """
-          if self.rutgers_time is None:
-            wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix, hour)] = model_time + timedelta(
-              seconds=int(self.rutgers_ocean_time[begin_ndx]))
-          else:
-            wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix, hour)] = model_time + timedelta(
-            hours=int(self.rutgers_time[begin_ndx]))
+          with open("/Users/danramage/tmp/kdh_salinity_rutgers_model.csv", "w") as out_file:
+            #i0,i1,j0,j1 = bbox2ij(self.rutgers_model.variables['lon_rho'][:], self.rutgers_model.variables['lat_rho'][:], [-75.728228,-74.985642,35.152562,35.746631])
+            lon_array = self.rutgers_model.variables['lon_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
+            lat_array = self.rutgers_model.variables['lat_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
+  
+            #flat_lon_array = lon_array.flatten()
+            #flat_lat_array = lat_array.flatten()
+            lons_i,lons_j = np.shape(lon_array)
+            lats_i, lats_j = np.shape(lat_array)
+            out_file.write("Longitude,Latitude\n")
+            out_file.write("%f,%f\n" % (lon_array[0][0], lat_array[0][0]))
+            out_file.write("%f,%f\n" % (lon_array[0][-1], lat_array[0][-1]))
+            out_file.write("%f,%f\n" % (lon_array[-1][0], lat_array[-1][0]))
+            out_file.write("%f,%f\n" % (lon_array[-1][-1], lat_array[-1][-1]))
+  
           """
-          wq_tests_data['%s_avg_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(
-            np.average(avg_salinity_pts))
-          #wq_tests_data['%s_min_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.min())
-          #wq_tests_data['%s_max_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.max())
+          try:
+            fill_value =  self.rutgers_model.variables['salt']._FillValue
+          except Exception as e:
+            fill_value = None
 
-          adjusted_end_ndx = adjusted_begin_ndx
-        """
-        with open("/Users/danramage/tmp/kdh_sites_salinity_rutgers.csv", "wa") as out_file:
-          out_file.write("DateTime,Longitude,Latitude,Salinity\n")
-          if self.rutgers_time is None:
-            date_time = model_time + timedelta(seconds=self.rutgers_ocean_time[closest_start_ndx])
-          else:
-            date_time = model_time + timedelta(hours=self.rutgers_time[closest_start_ndx])
-          out_file.write("%s,%f,%f,%f\n" % (date_time, self.rutgers_lon_array[int(pt_cell.x)][int(pt_cell.y)], self.rutgers_lat_array[int(pt_cell.x)][int(pt_cell.y)], salinity_data[0][int(pt_cell.x)][int(pt_cell.y)]))
-        """
+          pt_cell = closestCellFromPt(self.rutgers_cell_pt[0],self.rutgers_cell_pt[1],
+                                 self.rutgers_lon_array, self.rutgers_lat_array,
+                                 salinity_data[0],
+                                 fill_value,
+                                 self.rutgers_model.variables['mask_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui])
+
+          adjusted_end_ndx = None
+          for hour in range(24, 48, 24):
+            # Calculate the date we will start at referenced to the beginning_time of the data.
+            begin_delta = (start_date - timedelta(hours=hour)) - model_time
+            # Get the hours count.
+            if self.rutgers_time is None:
+              begin_cnt = begin_delta.total_seconds()
+              # Find the index in the data our days count is closest to.
+              begin_ndx = bisect_left(self.rutgers_ocean_time, begin_cnt)
+            else:
+              begin_cnt = (begin_delta.total_seconds() / (60.0 * 60.0))
+              # Find the index in the data our days count is closest to.
+              begin_ndx = bisect_left(self.rutgers_time, begin_cnt)
+            # Offset indexes from the larger dataset to our subset.
+            adjusted_begin_ndx = begin_ndx - closest_start_ndx
+            if adjusted_end_ndx is None:
+              adjusted_end_ndx = closest_end_ndx - closest_start_ndx
+
+            # Get the last 24 hour average salinity data
+            avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx, int(pt_cell.x), int(pt_cell.y)]
+            """
+            if self.rutgers_time is None:
+              wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix, hour)] = model_time + timedelta(
+                seconds=int(self.rutgers_ocean_time[begin_ndx]))
+            else:
+              wq_tests_data['%s_time_%d' % (self.rutgers_data_prefix, hour)] = model_time + timedelta(
+              hours=int(self.rutgers_time[begin_ndx]))
+            """
+            wq_tests_data['%s_avg_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(
+              np.average(avg_salinity_pts))
+            #wq_tests_data['%s_min_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.min())
+            #wq_tests_data['%s_max_salinity_%d' % (self.rutgers_data_prefix, hour)] = float(avg_salinity_pts.max())
+
+            adjusted_end_ndx = adjusted_begin_ndx
+          """
+          with open("/Users/danramage/tmp/kdh_sites_salinity_rutgers.csv", "wa") as out_file:
+            out_file.write("DateTime,Longitude,Latitude,Salinity\n")
+            if self.rutgers_time is None:
+              date_time = model_time + timedelta(seconds=self.rutgers_ocean_time[closest_start_ndx])
+            else:
+              date_time = model_time + timedelta(hours=self.rutgers_time[closest_start_ndx])
+            out_file.write("%s,%f,%f,%f\n" % (date_time, self.rutgers_lon_array[int(pt_cell.x)][int(pt_cell.y)], self.rutgers_lat_array[int(pt_cell.x)][int(pt_cell.y)], salinity_data[0][int(pt_cell.x)][int(pt_cell.y)]))
+          """
 
     return
 
