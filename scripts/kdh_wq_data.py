@@ -408,9 +408,11 @@ class kdh_wq_data(wq_data):
       #start_date = timezone('UTC').localize(datetime.strptime('2009-12-25 00:00:00', "%Y-%m-%d %H:%M:%S"))
       # Ocean Time is seconds since 2006-01-01 00:00:00
       model_time = timezone('UTC').localize(datetime.strptime('2006-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
-      #Run time is hours since 2013-05-18T00:00:00Z
+
+      #Old ESPRESSO model discontiued in favor of the new doppio.
+      #Run time is hours since 2017-11-01 00:00:00
       if self.rutgers_time is not None:
-        model_time = timezone('UTC').localize(datetime.strptime('2013-05-18T00:00:00', '%Y-%m-%dT%H:%M:%S'))
+        model_time = timezone('UTC').localize(datetime.strptime('2017-11-01T00:00:00', '%Y-%m-%dT%H:%M:%S'))
 
       begin_date = start_date - timedelta(hours=192)
       end_date = start_date
