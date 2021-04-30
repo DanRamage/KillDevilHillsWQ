@@ -103,22 +103,24 @@ class kdh_wq_data(wq_data):
       self.model_bbox = hycom_model_bbox
       self.model_within_polygon = Polygon(hycom_within_poly)
 
-      self.logger.debug("Connecting to copernicus data: %s" % (copernicus_file))
-      self.copernicus_model = nc.Dataset(copernicus_file)
-      self.copernicus_model_time = self.copernicus_model.variables['time'][:]
-      #Determine the bounding box indexes.
-      lons = self.copernicus_model.variables['longitude'][:]
-      lats = self.copernicus_model.variables['latitude'][:]
-      # latitude lower and upper index
-      self.copernicus_latli = np.argmin(np.abs(lats - model_bbox[2]))
-      self.copernicus_latui = np.argmin(np.abs(lats - model_bbox[3]))
-      # longitude lower and upper index
-      self.copernicus_lonli = np.argmin(np.abs(lons - model_bbox[0]))
-      self.copernicus_lonui = np.argmin(np.abs(lons - model_bbox[1]))
-      self.copernicus_lon_array = self.copernicus_model.variables['longitude'][self.copernicus_lonli:self.copernicus_lonui]
-      self.copernicus_lat_array = self.copernicus_model.variables['latitude'][self.copernicus_latli:self.copernicus_latui]
-      self.copernicus_data_prefix = None
-
+      try:
+        self.logger.debug("Connecting to copernicus data: %s" % (copernicus_file))
+        self.copernicus_model = nc.Dataset(copernicus_file)
+        self.copernicus_model_time = self.copernicus_model.variables['time'][:]
+        #Determine the bounding box indexes.
+        lons = self.copernicus_model.variables['longitude'][:]
+        lats = self.copernicus_model.variables['latitude'][:]
+        # latitude lower and upper index
+        self.copernicus_latli = np.argmin(np.abs(lats - model_bbox[2]))
+        self.copernicus_latui = np.argmin(np.abs(lats - model_bbox[3]))
+        # longitude lower and upper index
+        self.copernicus_lonli = np.argmin(np.abs(lons - model_bbox[0]))
+        self.copernicus_lonui = np.argmin(np.abs(lons - model_bbox[1]))
+        self.copernicus_lon_array = self.copernicus_model.variables['longitude'][self.copernicus_lonli:self.copernicus_lonui]
+        self.copernicus_lat_array = self.copernicus_model.variables['latitude'][self.copernicus_latli:self.copernicus_latui]
+        self.copernicus_data_prefix = None
+      except Exception as e:
+        self.logger.exception(e)
       #self.connect_to_hycom(self.hycomm_endpoints[self.hycom_current_date_ndx])
       self.hycom_data_prefix = None
 
@@ -172,40 +174,44 @@ class kdh_wq_data(wq_data):
   def connect_to_hycom(self, endpoint):
     self.logger.debug(
       "Connecting to thredds endpoint for hycom data: %s" % (endpoint))
-    self.hycom_model = nc.Dataset(self.hycomm_endpoints[self.hycom_current_date_ndx])
+    try:
+      self.hycom_model = nc.Dataset(self.hycomm_endpoints[self.hycom_current_date_ndx])
 
-    self.hycom_model_time = self.hycom_model.variables['time'][:]
-
-    model_bbox = [float(self.model_bbox[0]), float(self.model_bbox[2]),
-                  float(self.model_bbox[1]), float(self.model_bbox[3])]
-
-    # Determine the bounding box indexes.
-    lons = self.hycom_model.variables['lon'][:]
-    lats = self.hycom_model.variables['lat'][:]
-    # latitude lower and upper index
-    self.hycom_latli = np.argmin(np.abs(lats - model_bbox[2]))
-    self.hycom_latui = np.argmin(np.abs(lats - model_bbox[3]))
-    # longitude lower and upper index
-    #Check how the longitude is laid out.
-    #Longitudes are -180 to 180
-    if lons[0] == -180.0:
-      self.hycom_lonli = np.argmin(np.abs(lons - model_bbox[0]))
-      self.hycom_lonui = np.argmin(np.abs(lons - model_bbox[1]))
-      self.hycom_180_longitude = True
-    #Longitudes are 0-360.
-    else:
-      lon_li = model_bbox[0] % 360
-      lon_ui = model_bbox[1] % 360
-      self.hycom_lonli = np.argmin(np.abs(lons - lon_li))
-      self.hycom_lonui = np.argmin(np.abs(lons - lon_ui))
-      self.hycom_180_longitude = False
+      self.hycom_model_time = self.hycom_model.variables['time'][:]
 
 
-    self.hycom_lon_array = self.hycom_model.variables['lon'][self.hycom_lonli:self.hycom_lonui]
-    self.hycom_lat_array = self.hycom_model.variables['lat'][self.hycom_latli:self.hycom_latui]
-    if not self.hycom_180_longitude:
-      #Convert our longitudes into -180 to 180.
-      self.hycom_lon_array = np.array([(((lon+180) % 360)-180) for lon in self.hycom_lon_array])
+      model_bbox = [float(self.model_bbox[0]), float(self.model_bbox[2]),
+                    float(self.model_bbox[1]), float(self.model_bbox[3])]
+
+      # Determine the bounding box indexes.
+      lons = self.hycom_model.variables['lon'][:]
+      lats = self.hycom_model.variables['lat'][:]
+      # latitude lower and upper index
+      self.hycom_latli = np.argmin(np.abs(lats - model_bbox[2]))
+      self.hycom_latui = np.argmin(np.abs(lats - model_bbox[3]))
+      # longitude lower and upper index
+      #Check how the longitude is laid out.
+      #Longitudes are -180 to 180
+      if lons[0] == -180.0:
+        self.hycom_lonli = np.argmin(np.abs(lons - model_bbox[0]))
+        self.hycom_lonui = np.argmin(np.abs(lons - model_bbox[1]))
+        self.hycom_180_longitude = True
+      #Longitudes are 0-360.
+      else:
+        lon_li = model_bbox[0] % 360
+        lon_ui = model_bbox[1] % 360
+        self.hycom_lonli = np.argmin(np.abs(lons - lon_li))
+        self.hycom_lonui = np.argmin(np.abs(lons - lon_ui))
+        self.hycom_180_longitude = False
+
+
+      self.hycom_lon_array = self.hycom_model.variables['lon'][self.hycom_lonli:self.hycom_lonui]
+      self.hycom_lat_array = self.hycom_model.variables['lat'][self.hycom_latli:self.hycom_latui]
+      if not self.hycom_180_longitude:
+        #Convert our longitudes into -180 to 180.
+        self.hycom_lon_array = np.array([(((lon+180) % 360)-180) for lon in self.hycom_lon_array])
+    except Exception as e:
+      self.logger.exception(e)
     return
 
   def connect_to_rutgers(self, endpoint):
