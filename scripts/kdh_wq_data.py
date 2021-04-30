@@ -531,86 +531,89 @@ class kdh_wq_data(wq_data):
   def get_copernicus_model_data(self, start_date, wq_tests_data):
     self.logger.debug("Start retrieving copernicus model data: %s" % (start_date))
     #Time is hours since 1950-01-01 00:00:00
-    beginning_time = timezone('UTC').localize(datetime.strptime('1950-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
-    begin_date = start_date - timedelta(hours=192)
-    end_date = start_date
-    if begin_date >= (beginning_time + timedelta(hours=int(self.copernicus_model_time[0]))):
-      start_time_delta = begin_date - beginning_time
-      end_time_delta = end_date - beginning_time
+    try:
+      beginning_time = timezone('UTC').localize(datetime.strptime('1950-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
+      begin_date = start_date - timedelta(hours=192)
+      end_date = start_date
+      if begin_date >= (beginning_time + timedelta(hours=int(self.copernicus_model_time[0]))):
+        start_time_delta = begin_date - beginning_time
+        end_time_delta = end_date - beginning_time
 
-      #The time dimension in the model is hours offset since the beginning_time above.
-      offset_start = start_time_delta.total_seconds() / (60.0 * 60.0)
-      #offset_start = (start_time_delta.days) + (start_time_delta.seconds / (60.0 * 60.0))
-      offset_end = end_time_delta.total_seconds() / (60.0 * 60.0)
-      #offset_end = (end_time_delta.days) + (end_time_delta.seconds / (60.0 * 60.0))
-      closest_start_ndx = bisect_left(self.copernicus_model_time, offset_start)
-      closest_end_ndx = bisect_left(self.copernicus_model_time, offset_end)
-      if closest_start_ndx != -1 and closest_end_ndx != -1:
-        """
-        with open("/Users/danramage/tmp/kdh_salinity_copernicus_model.csv", "w") as out_file:
-          out_file.write("Longitude,Latitude,Lat Ndx,Lon Ndx\n")
-          for lon_ndx in range(0,len(self.copernicus_lon_array)):
-            for lat_ndx in range(0,len(self.copernicus_lat_array)):
-              out_file.write("%f,%f,%d,%d\n" % (self.copernicus_lon_array[lon_ndx], self.copernicus_lat_array[lat_ndx], lon_ndx, lat_ndx))
-        """
-        try:
-          if self.logger:
-            self.logger.debug("Retrieving copernicus salinity data.")
-          salinity_data = self.copernicus_model.variables['so'][closest_start_ndx:closest_end_ndx+1,0,self.copernicus_latli:self.copernicus_latui,self.copernicus_lonli:self.copernicus_lonui]
-          pt = closestCellFromPtInPolygon(self.site.object_geometry,
-                                          self.copernicus_lon_array, self.copernicus_lat_array,
-                                          salinity_data[0],
-                                          self.copernicus_model.variables['so']._FillValue,
-                                          self.model_within_polygon)
-          adjusted_end_ndx = None
-
-          for hour in range(24, 48, 24):
-            #Calculate the date we will start at referenced to the beginning_time of the data.
-            begin_delta = (start_date - timedelta(hours=hour)) - beginning_time
-            #Get the hours count.
-            begin_hours_cnt = (begin_delta.total_seconds() / (60.0 * 60.0))
-            #begin_days_cnt = (begin_delta.days) + (begin_delta.seconds / (60.0 * 60.0 * 24.0))
-            #Find the index in the data our days count is closest to.
-            begin_ndx = bisect_left(self.copernicus_model_time, begin_hours_cnt)
-            #Offset indexes from the larger dataset to our subset.
-            adjusted_begin_ndx = begin_ndx-closest_start_ndx
-            if adjusted_end_ndx is None:
-              adjusted_end_ndx = closest_end_ndx-closest_start_ndx
-            #Validate we're getting the same dates.
-            #if self.hycom_model_time[begin_ndx] != times_192[adjusted_begin_ndx]:
-            #  if self.logger:
-            #    self.logger.error("Times do not match")
-            #Get the last 24 hour average salinity data
-            avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx,int(pt.y),int(pt.x)]
-
-            #wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix, hour)] = beginning_time + timedelta(hours=int(self.copernicus_model_time[begin_ndx]))
-            wq_tests_data['%s_avg_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(np.average(avg_salinity_pts))
-            #wq_tests_data['%s_min_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.min())
-            #wq_tests_data['%s_max_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.max())
-
-            adjusted_end_ndx = adjusted_begin_ndx
+        #The time dimension in the model is hours offset since the beginning_time above.
+        offset_start = start_time_delta.total_seconds() / (60.0 * 60.0)
+        #offset_start = (start_time_delta.days) + (start_time_delta.seconds / (60.0 * 60.0))
+        offset_end = end_time_delta.total_seconds() / (60.0 * 60.0)
+        #offset_end = (end_time_delta.days) + (end_time_delta.seconds / (60.0 * 60.0))
+        closest_start_ndx = bisect_left(self.copernicus_model_time, offset_start)
+        closest_end_ndx = bisect_left(self.copernicus_model_time, offset_end)
+        if closest_start_ndx != -1 and closest_end_ndx != -1:
           """
-          with open("/Users/danramage/tmp/copernicus_salinity.csv", "w") as out_file:
-            out_file.write("Date,Salinity\n")
-            row = ["StartDateTime", "Lon", "Lat"]
-            for hour in range(24, 192, 24):
-              row.append("Model_Time_%d" % (hour))
-              row.append("Salinity_%d" % (hour))
-            out_file.write(",".join(row))
-            out_file.write("\n")
-            del row[:]
-
-            row.append(str(start_date))
-            row.append(str(self.copernicus_lon_array[int(pt.x)]))
-            row.append(str(self.copernicus_lat_array[int(pt.y)]))
-            for hour in range(24, 192, 24):
-              row.append(str(wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix, hour)]))
-              row.append(str(wq_tests_data['%s_avg_salinity_%d' % (self.copernicus_data_prefix, hour)]))
-            out_file.write(",".join(row))
-            out_file.write("\n")
+          with open("/Users/danramage/tmp/kdh_salinity_copernicus_model.csv", "w") as out_file:
+            out_file.write("Longitude,Latitude,Lat Ndx,Lon Ndx\n")
+            for lon_ndx in range(0,len(self.copernicus_lon_array)):
+              for lat_ndx in range(0,len(self.copernicus_lat_array)):
+                out_file.write("%f,%f,%d,%d\n" % (self.copernicus_lon_array[lon_ndx], self.copernicus_lat_array[lat_ndx], lon_ndx, lat_ndx))
           """
-        except Exception as e:
-          self.logger.exception(e)
+          try:
+            if self.logger:
+              self.logger.debug("Retrieving copernicus salinity data.")
+            salinity_data = self.copernicus_model.variables['so'][closest_start_ndx:closest_end_ndx+1,0,self.copernicus_latli:self.copernicus_latui,self.copernicus_lonli:self.copernicus_lonui]
+            pt = closestCellFromPtInPolygon(self.site.object_geometry,
+                                            self.copernicus_lon_array, self.copernicus_lat_array,
+                                            salinity_data[0],
+                                            self.copernicus_model.variables['so']._FillValue,
+                                            self.model_within_polygon)
+            adjusted_end_ndx = None
+
+            for hour in range(24, 48, 24):
+              #Calculate the date we will start at referenced to the beginning_time of the data.
+              begin_delta = (start_date - timedelta(hours=hour)) - beginning_time
+              #Get the hours count.
+              begin_hours_cnt = (begin_delta.total_seconds() / (60.0 * 60.0))
+              #begin_days_cnt = (begin_delta.days) + (begin_delta.seconds / (60.0 * 60.0 * 24.0))
+              #Find the index in the data our days count is closest to.
+              begin_ndx = bisect_left(self.copernicus_model_time, begin_hours_cnt)
+              #Offset indexes from the larger dataset to our subset.
+              adjusted_begin_ndx = begin_ndx-closest_start_ndx
+              if adjusted_end_ndx is None:
+                adjusted_end_ndx = closest_end_ndx-closest_start_ndx
+              #Validate we're getting the same dates.
+              #if self.hycom_model_time[begin_ndx] != times_192[adjusted_begin_ndx]:
+              #  if self.logger:
+              #    self.logger.error("Times do not match")
+              #Get the last 24 hour average salinity data
+              avg_salinity_pts = salinity_data[adjusted_begin_ndx:adjusted_end_ndx,int(pt.y),int(pt.x)]
+
+              #wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix, hour)] = beginning_time + timedelta(hours=int(self.copernicus_model_time[begin_ndx]))
+              wq_tests_data['%s_avg_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(np.average(avg_salinity_pts))
+              #wq_tests_data['%s_min_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.min())
+              #wq_tests_data['%s_max_salinity_%d' % (self.copernicus_data_prefix, hour)] = float(avg_salinity_pts.max())
+
+              adjusted_end_ndx = adjusted_begin_ndx
+            """
+            with open("/Users/danramage/tmp/copernicus_salinity.csv", "w") as out_file:
+              out_file.write("Date,Salinity\n")
+              row = ["StartDateTime", "Lon", "Lat"]
+              for hour in range(24, 192, 24):
+                row.append("Model_Time_%d" % (hour))
+                row.append("Salinity_%d" % (hour))
+              out_file.write(",".join(row))
+              out_file.write("\n")
+              del row[:]
+  
+              row.append(str(start_date))
+              row.append(str(self.copernicus_lon_array[int(pt.x)]))
+              row.append(str(self.copernicus_lat_array[int(pt.y)]))
+              for hour in range(24, 192, 24):
+                row.append(str(wq_tests_data['%s_time_%d' % (self.copernicus_data_prefix, hour)]))
+                row.append(str(wq_tests_data['%s_avg_salinity_%d' % (self.copernicus_data_prefix, hour)]))
+              out_file.write(",".join(row))
+              out_file.write("\n")
+            """
+          except Exception as e:
+            self.logger.exception(e)
+    except Exception as e:
+      self.logger.exception(e)
     return
 
   def get_hycom_model_data(self, start_date, wq_tests_data):
