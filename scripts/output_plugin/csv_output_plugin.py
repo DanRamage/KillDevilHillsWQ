@@ -42,10 +42,10 @@ class csv_output_plugin(output_plugin):
                                                       test.model_name,
                                                       mlr_result,
                                                       entero_val))
-            except Exception,e:
+            except Exception as e:
               if self.logger:
                 self.logger.exception(e)
-      except IOError,e:
+      except IOError as e:
         if self.logger:
           self.logger.exception(e)
     if self.logger:

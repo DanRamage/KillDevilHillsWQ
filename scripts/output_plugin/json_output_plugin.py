@@ -67,10 +67,10 @@ class json_output_plugin(output_plugin):
         }
         try:
           json_output_file.write(json.dumps(json_data, sort_keys=True))
-        except Exception,e:
+        except Exception as e:
           if self.logger:
             self.logger.exception(e)
-    except IOError,e:
+    except IOError as e:
       if self.logger:
         self.logger.exception(e)
     if self.logger:

@@ -49,7 +49,7 @@ class email_output_plugin(output_plugin):
                                                 execution_date=kwargs['execution_date'],
                                                 report_url=report_url)
         report_out_file.write(results_report)
-    except TypeError,e:
+    except TypeError as e:
       if self.logger:
         self.logger.exception(makoExceptions.text_error_template().render())
     except (IOError,AttributeError,Exception) as e:

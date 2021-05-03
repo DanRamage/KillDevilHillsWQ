@@ -220,7 +220,7 @@ class kdh_platform_data_collector_plugin(data_collector_plugin):
       for site in nos_sites:
         self.get_nos_data(site, nos_obs, self.begin_date, units_conversion, xenia_db)
 
-    except Exception,e:
+    except Exception as e:
       if logger is not None:
         logger.exception(e)
       else:

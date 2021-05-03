@@ -315,7 +315,7 @@ class kdh_sample_data_collector_plugin(data_collector_plugin):
         if logger is not None:
           logger.exception(e)
 
-    except Exception,e:
+    except Exception as e:
       if logger is not None:
         logger.exception(e)
       else:
