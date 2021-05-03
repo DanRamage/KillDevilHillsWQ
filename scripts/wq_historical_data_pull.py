@@ -603,7 +603,7 @@ def main():
   try:
     config_file = ConfigParser.RawConfigParser()
     config_file.read(options.config_file)
-  except Exception, e:
+  except Exception as e:
     raise
   else:
     try:
@@ -618,7 +618,7 @@ def main():
       units_file = config_file.get("units_conversion", "config_file")
       if options.starting_date is not None:
         start_date = timezone('US/Eastern').localize(datetime.strptime(options.starting_date, "%Y-%m-%d"))
-    except ConfigParser.Error, e:
+    except ConfigParser.Error as e:
       if logger:
         logger.exception(e)
     else:

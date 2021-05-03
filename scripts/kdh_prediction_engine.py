@@ -9,7 +9,11 @@ from pytz import timezone
 import traceback
 import time
 import optparse
-import ConfigParser
+import sys
+if sys.version_info[0] < 3:
+  import ConfigParser
+else:
+  import configparser as ConfigParser
 from collections import OrderedDict
 
 from yapsy.PluginManager import PluginManager
@@ -105,7 +109,7 @@ class kdh_prediction_engine(wq_prediction_engine):
       test_config_file = config_file.get(site_name, 'prediction_config')
       entero_lo_limit = config_file.getint('entero_limits', 'limit_lo')
       entero_hi_limit = config_file.getint('entero_limits', 'limit_hi')
-    except ConfigParser.Error, e:
+    except ConfigParser.Error as e:
         self.logger.exception(e)
     else:
       self.logger.debug("Site: %s Model Config File: %s" % (site_name, test_config_file))
@@ -369,7 +373,7 @@ def main():
       logger.info("Log file opened.")
       use_logging = True
 
-  except ConfigParser.Error, e:
+  except ConfigParser.Error as e:
     traceback.print_exc(e)
     sys.exit(-1)
   else:
@@ -386,7 +390,7 @@ def main():
           #Convert to UTC
           begin_date = est.astimezone(timezone('UTC'))
           dates_to_process.append(begin_date)
-      except Exception,e:
+      except Exception as e:
         if logger:
           logger.exception(e)
     else:
@@ -403,7 +407,7 @@ def main():
         pred_engine = kdh_prediction_engine()
         pred_engine.run_wq_models(begin_date=process_date,
                         config_file_name=options.config_file)
-    except Exception, e:
+    except Exception as e:
       logger.exception(e)
 
   if logger:

@@ -321,7 +321,7 @@ def main():
                     model_config_parser.set("settings", "model_count", model_num)
                     model_config_parser.write(model_config_ini_obj)
 
-                except IOError, e:
+                except IOError as e:
                   if logger:
                     logger.exception(e)
               del sites_list[:]

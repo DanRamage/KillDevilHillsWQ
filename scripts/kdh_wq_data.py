@@ -2,11 +2,11 @@ import sys
 sys.path.append('../commonfiles/python')
 
 
-import os
-import logging.config
-import optparse
-import ConfigParser
-import csv
+if sys.version_info[0] < 3:
+  import ConfigParser
+else:
+  import configparser as ConfigParser
+
 from datetime import datetime, timedelta
 import time
 from pytz import timezone
@@ -167,7 +167,7 @@ class kdh_wq_data(wq_data):
           self.logger.error(
             "Unable to connect to DB: %s at %s." % (xenia_obs_db_name, xenia_obs_db_host))
         """
-      except Exception, e:
+      except Exception as e:
         self.logger.exception(e)
         raise
 
@@ -737,7 +737,7 @@ class kdh_wq_data(wq_data):
                                  cell_lat, pt.x, cell_lon, pt.y,\
                                  wq_tests_data['%s_avg_salinity_24' % (self.hycom_data_prefix)],wq_tests_data['%s_avg_water_temp_24'  % (self.hycom_data_prefix)]))
           """
-        except Exception, e:
+        except Exception as e:
           if self.logger:
             self.logger.exception(e)
 

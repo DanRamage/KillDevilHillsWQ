@@ -168,7 +168,7 @@ class kdh_historical_wq_data(wq_data):
           self.logger.error("Unable to connect to DB: %s." %(xenia_database_name))
 
 
-      except Exception,e:
+      except Exception as e:
         self.logger.exception(e)
         raise
 
@@ -715,7 +715,7 @@ class kdh_historical_wq_data(wq_data):
                                  cell_lat, pt.x, cell_lon, pt.y,\
                                  wq_tests_data['%s_avg_salinity_24' % (self.hycom_data_prefix)],wq_tests_data['%s_avg_water_temp_24'  % (self.hycom_data_prefix)]))
           """
-        except Exception, e:
+        except Exception as e:
           if self.logger:
             self.logger.exception(e)
 
@@ -1012,7 +1012,7 @@ def main():
     sites_location_file = config_file.get('boundaries_settings', 'sample_sites')
     wq_historical_db = config_file.get('database', 'name')
 
-  except ConfigParser.Error, e:
+  except ConfigParser.Error as e:
     import traceback
     traceback.print_exc(e)
     sys.exit(-1)
@@ -1064,7 +1064,7 @@ def main():
             platform_nfo.append({'platform_handle': config_file.get(platform,'handle'),
                                  'observations': obs_uom_nfo})
 
-        except ConfigParser.Error, e:
+        except ConfigParser.Error as e:
           if logger:
             logger.exception(e)
 
@@ -1128,7 +1128,7 @@ def main():
                   data[:]
 
                   auto_num += 1
-                except Exception, e:
+                except Exception as e:
                   if logger:
                     logger.exception(e)
                   sys.exit(-1)
