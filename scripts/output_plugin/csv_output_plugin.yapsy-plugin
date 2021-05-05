@@ -9,5 +9,5 @@ Website = http://howsthebeach.org
 Description = Kill Devil Hills specific water quality processing.
 
 [Settings]
-csv_outfile=/mnt/wq_feeds/northcarolina/killdevilhills/%s-Predictions.csv
+csv_outfile=/mnt/wq_feeds/northcarolina/killdevilhills/%%s-Predictions.csv
 use_logging=True
