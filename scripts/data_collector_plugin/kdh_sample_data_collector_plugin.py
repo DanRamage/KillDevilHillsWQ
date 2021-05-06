@@ -17,8 +17,6 @@ from nc_sample_data import nc_wq_sample_data
 from wq_sites import wq_sample_sites
 import data_collector_plugin as my_plugin
 
-import ConfigParser
-
 """
 https://reports.ncdenr.org/BOE/OpenDocument/opendoc/CrystalReports/viewrpt.cwr?
 id=1887482&
