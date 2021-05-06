@@ -16,7 +16,11 @@ from wq_sites import wq_sample_sites
 #from data_collector_plugin import data_collector_plugin
 import data_collector_plugin as my_plugin
 
-import ConfigParser
+if sys.version_info[0] < 3:
+  import ConfigParser
+else:
+  import configparser as ConfigParser
+
 from pyoos.collectors.ndbc.ndbc_sos import NdbcSos
 from pyoos.collectors.coops.coops_sos import CoopsSos
 from pyoos.collectors.awc.awc_rest import AwcRest
