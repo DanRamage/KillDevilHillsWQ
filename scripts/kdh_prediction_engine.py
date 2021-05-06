@@ -132,6 +132,50 @@ class kdh_prediction_engine(wq_prediction_engine):
         model_list.append(test_obj)
 
     return model_list
+  def collect_data(self, **kwargs):
+    self.logger.info("Begin collect_data")
+    try:
+      simplePluginManager = PluginManager()
+
+      yapsy_log = logging.getLogger('yapsy')
+      yapsy_log.setLevel(logging.DEBUG)
+      yapsy_log.disabled = False
+
+      simplePluginManager.setCategoriesFilter({
+         "DataCollector": data_collector_plugin
+         })
+
+      # Tell it the default place(s) where to find plugins
+      self.logger.debug("Plugin directories: %s" % (kwargs['data_collector_plugin_directories']))
+      simplePluginManager.setPluginPlaces(kwargs['data_collector_plugin_directories'])
+
+      simplePluginManager.collectPlugins()
+
+      output_queue = Queue()
+      plugin_cnt = 0
+      plugin_start_time = time.time()
+      for plugin in simplePluginManager.getAllPlugins():
+        self.logger.info("Starting plugin: %s" % (plugin.name))
+        if plugin.plugin_object.initialize_plugin(details=plugin.details,
+                                                  queue=output_queue):
+          plugin.plugin_object.start()
+        else:
+          self.logger.error("Failed to initialize plugin: %s" % (plugin.name))
+        plugin_cnt += 1
+
+      #Wait for the plugings to finish up.
+      self.logger.info("Waiting for %d plugins to complete." % (plugin_cnt))
+      for plugin in simplePluginManager.getAllPlugins():
+        plugin.plugin_object.join()
+        plugin.plugin_object.finalize()
+      while not output_queue.empty():
+        results = output_queue.get()
+        if results[0] == data_result_types.MODEL_DATA_TYPE:
+          self.site_data = results[1]
+
+      self.logger.info("%d Plugins completed in %f seconds" % (plugin_cnt, time.time() - plugin_start_time))
+    except Exception as e:
+      self.logger.exception(e)
 
   def run_wq_models(self, **kwargs):
     prediction_testrun_date = datetime.now()
