@@ -1,7 +1,9 @@
 import sys
 sys.path.append('../../commonfiles/python')
 import logging.config
-from data_collector_plugin import data_collector_plugin
+#from data_collector_plugin import data_collector_plugin
+import data_collector_plugin as my_plugin
+
 from datetime import datetime, timedelta
 from pytz import timezone
 import ConfigParser
@@ -15,7 +17,7 @@ from motuclient import motu_api
 class MotoParameters:
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
-class motu_copernicus_collector_plugin(data_collector_plugin):
+class motu_copernicus_collector_plugin(my_plugin.data_collector_plugin):
   def __init__(self):
     Process.__init__(self)
     IPlugin.__init__(self)

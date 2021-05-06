@@ -15,7 +15,8 @@ from wq_output_results import wq_sample_data,wq_samples_collection,wq_advisories
 from nc_sample_data import nc_wq_sample_data
 
 from wq_sites import wq_sample_sites
-from data_collector_plugin import data_collector_plugin
+import data_collector_plugin as my_plugin
+
 import ConfigParser
 
 """
@@ -259,7 +260,7 @@ def parse_excel_data(file, monitoring_sites, wq_data_collection, logger_name):
       site_id_ndx = row_headers.index('Site')
   return
 
-class kdh_sample_data_collector_plugin(data_collector_plugin):
+class kdh_sample_data_collector_plugin(my_plugin.data_collector_plugin):
   def __init__(self):
     Process.__init__(self)
     IPlugin.__init__(self)

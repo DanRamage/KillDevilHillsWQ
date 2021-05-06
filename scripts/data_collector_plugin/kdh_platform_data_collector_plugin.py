@@ -13,7 +13,9 @@ from yapsy.IPlugin import IPlugin
 from multiprocessing import Process
 
 from wq_sites import wq_sample_sites
-from data_collector_plugin import data_collector_plugin
+#from data_collector_plugin import data_collector_plugin
+import data_collector_plugin as my_plugin
+
 import ConfigParser
 from pyoos.collectors.ndbc.ndbc_sos import NdbcSos
 from pyoos.collectors.coops.coops_sos import CoopsSos
@@ -160,7 +162,7 @@ nws_obs = [
 
 ]
 
-class kdh_platform_data_collector_plugin(data_collector_plugin):
+class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
   def __init__(self):
     Process.__init__(self)
     IPlugin.__init__(self)
