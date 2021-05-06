@@ -6,7 +6,11 @@ import data_collector_plugin as my_plugin
 
 from datetime import datetime, timedelta
 from pytz import timezone
-import ConfigParser
+if sys.version_info[0] < 3:
+  import ConfigParser
+else:
+  import configparser as ConfigParser
+
 import traceback
 import time
 from yapsy.IPlugin import IPlugin
