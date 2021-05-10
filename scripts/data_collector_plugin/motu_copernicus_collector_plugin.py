@@ -58,7 +58,7 @@ class motu_copernicus_collector_plugin(my_plugin.data_collector_plugin):
         auth_mode=motu_api.AUTHENTICATION_MODE_CAS,
         user= 'dramage',
         pwd= 'DanCMEMS2018',
-        motu= 'http://nrtcmems.mercator-ocean.fr/motu-web/Motu',
+        motu= 'https://nrt.cmems-du.eu/motu-web/Motu ',
         service_id= 'GLOBAL_ANALYSIS_FORECAST_PHY_001_024-TDS',
         product_id= 'global-analysis-forecast-phy-001-024',
         longitude_min=-80.0,
