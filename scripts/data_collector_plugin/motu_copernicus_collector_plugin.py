@@ -27,7 +27,7 @@ class motu_copernicus_collector_plugin(my_plugin.data_collector_plugin):
     IPlugin.__init__(self)
 
   def initialize_plugin(self, **kwargs):
-    data_collector_plugin.initialize_plugin(self, **kwargs)
+    my_plugin.data_collector_plugin.initialize_plugin(self, **kwargs)
     try:
       logger = logging.getLogger(self.__class__.__name__)
       self.plugin_details = kwargs['details']
