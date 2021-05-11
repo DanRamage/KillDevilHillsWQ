@@ -123,7 +123,7 @@
                         </tr>
                         % for test_obj in site_data['models'].tests:
                             % if test_obj is not None:
-                                %if test_obj.mlrResults is not None:
+                                %if test_obj.mlrResult is not None:
                                     % if test_obj.mlrResult < 36:
                                       <tr>
                                     % elif test_obj.mlrResult >= 36 and test_obj.mlrResult < 104:
