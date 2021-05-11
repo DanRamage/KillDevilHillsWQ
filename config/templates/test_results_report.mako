@@ -123,13 +123,19 @@
                         </tr>
                         % for test_obj in site_data['models'].tests:
                             % if test_obj is not None:
-                                % if test_obj.mlrResult < 36:
-                                  <tr>
-                                % elif test_obj.mlrResult >= 36 and test_obj.mlrResult < 104:
-                                  <tr class="medium_bacteria">
-                                % else:
-                                  <tr class="high_bacteria">
-                                % endif
+                                %if test_obj.mlrResults is not None:
+                                    % if test_obj.mlrResult < 36:
+                                      <tr>
+                                    % elif test_obj.mlrResult >= 36 and test_obj.mlrResult < 104:
+                                      <tr class="medium_bacteria">
+                                    % else:
+                                      <tr class="high_bacteria">
+                                    % endif
+                                %else:
+                                  <td>
+                                      NO TEST
+                                  </td>
+                                %endif
 
                                   <td>
                                     ${test_obj.model_name}
