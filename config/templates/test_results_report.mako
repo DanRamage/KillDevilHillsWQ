@@ -122,38 +122,46 @@
                             <th>Data Used</th>
                         </tr>
                         % for test_obj in site_data['models'].tests:
-                            % if test_obj.mlrResult < 36:
-                              <tr>
-                            % elif test_obj.mlrResult >= 36 and test_obj.mlrResult < 104:
-                              <tr class="medium_bacteria">
-                            % else:
-                              <tr class="high_bacteria">
-                            % endif
-
-                              <td>
-                                ${test_obj.model_name}
-                              </td>
-                              <td>
-                                ${test_obj.predictionLevel.__str__()}
-                              </td>
-                              <td>
-                                % if test_obj.mlrResult is not None:
-                                  ${"%.2f" % (test_obj.mlrResult)}
+                            % if test_obj is not None:
+                                % if test_obj.mlrResult < 36:
+                                  <tr>
+                                % elif test_obj.mlrResult >= 36 and test_obj.mlrResult < 104:
+                                  <tr class="medium_bacteria">
                                 % else:
-                                  NO TEST
+                                  <tr class="high_bacteria">
                                 % endif
-                              </td>
-                              <td>
-                                % for key in test_obj.data_used:
-                                  % if test_obj.data_used[key] != -9999:
-                                    ${key}: ${test_obj.data_used[key]}
-                                  % else:
-                                    ${key}: Data unavailable
-                                  % endif
-                                    </br>
-                                % endfor
-                              </td>
-                            </tr>
+
+                                  <td>
+                                    ${test_obj.model_name}
+                                  </td>
+                                  <td>
+                                    ${test_obj.predictionLevel.__str__()}
+                                  </td>
+                                  <td>
+                                    % if test_obj.mlrResult is not None:
+                                      ${"%.2f" % (test_obj.mlrResult)}
+                                    % else:
+                                      NO TEST
+                                    % endif
+                                  </td>
+                                  <td>
+                                    % for key in test_obj.data_used:
+                                      % if test_obj.data_used[key] != -9999:
+                                        ${key}: ${test_obj.data_used[key]}
+                                      % else:
+                                        ${key}: Data unavailable
+                                      % endif
+                                        </br>
+                                    % endfor
+                                  </td>
+                                </tr>
+                            %else:
+                                <tr>
+                                    <td>
+                                        NO TEST
+                                    </td>
+                                </tr>
+                            % endif
                         % endfor
                     </table>
                 </div>
