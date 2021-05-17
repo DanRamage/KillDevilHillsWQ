@@ -559,7 +559,7 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
     url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?" \
           "dataSource=metars&requestType=retrieve&format=csv&stationString={station}&hoursBeforeNow={hours}".format(
       station=site,
-      hours=24
+      hours=48
     )
     '''
     #awc_query.filter(bbox=(-77,34,-74,36),stationString=site, start=start_date, end=utc_end_date)
