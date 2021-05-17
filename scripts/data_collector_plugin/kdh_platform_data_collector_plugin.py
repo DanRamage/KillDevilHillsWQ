@@ -219,8 +219,8 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
       wq_sites = wq_sample_sites()
       wq_sites.load_sites(file_name=sites_location_file, boundary_file=boundaries_location_file)
 
-      #for site in ndbc_sites:
-      #  self.get_ndbc_data(site, ndbc_obs, self.begin_date, units_conversion, xenia_db)
+      for site in ndbc_sites:
+        self.get_ndbc_data(site, ndbc_obs, self.begin_date, units_conversion, xenia_db)
       for site in nws_site:
         self.get_nws_data(site, nws_obs, self.begin_date, units_conversion, xenia_db)
       for site in nos_sites:
