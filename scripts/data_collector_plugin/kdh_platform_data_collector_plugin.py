@@ -219,8 +219,8 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
       wq_sites = wq_sample_sites()
       wq_sites.load_sites(file_name=sites_location_file, boundary_file=boundaries_location_file)
 
-      for site in ndbc_sites:
-        self.get_ndbc_data(site, ndbc_obs, self.begin_date, units_conversion, xenia_db)
+      #for site in ndbc_sites:
+      #  self.get_ndbc_data(site, ndbc_obs, self.begin_date, units_conversion, xenia_db)
       for site in nws_site:
         self.get_nws_data(site, nws_obs, self.begin_date, units_conversion, xenia_db)
       for site in nos_sites:
@@ -294,7 +294,7 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
         except Exception as e:
           logger.exception(e)
         else:
-          csv_reader = csv.reader(str(response).split('\n'), delimiter=',')
+          csv_reader = csv.reader(response.decode('utf-8').split('\n'), delimiter=',')
           line_cnt = 0
 
           for row in csv_reader:
@@ -416,7 +416,7 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
         except Exception as e:
           logger.exception(e)
         else:
-          csv_reader = csv.reader(str(response).split('\n'), delimiter=',')
+          csv_reader = csv.reader(response.decode('utf-8').split('\n'), delimiter=',')
           line_cnt = 0
 
           for row in csv_reader:
@@ -547,22 +547,38 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
           xenia_obs['m_type_id'] = m_type_id
           xenia_obs['sensor_id'] = sensor_id
 
-    awc_query = AwcRest()
+    #awc_query = AwcRest()
     # dates.sort(reverse=True)
 
     logger.debug("Query site: %s for date: %s" % (site, begin_date))
-    awc_query.clear()
+    #awc_query.clear()
     # utc_end_date = begin_date.astimezone(utc_tz) + timedelta(hours=24)
     utc_end_date = begin_date.astimezone(utc_tz)
     start_date = begin_date.astimezone(utc_tz) - timedelta(hours=24)
 
-    awc_query.filter(bbox=(0,0,0,0), station=site, start=start_date, end=utc_end_date)
+    url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?" \
+          "dataSource=metars&requestType=retrieve&format=csv&stationString={station}&hoursBeforeNow={hours}".format(
+      station=site,
+      hours=24
+    )
+    '''
+    #awc_query.filter(bbox=(-77,34,-74,36),stationString=site, start=start_date, end=utc_end_date)
+    awc_query.filter(bbox=(0,0,0,0), start=start_date, end=utc_end_date)
     try:
       # response = awc_query.collect()
       temp_file = os.path.join(self.temp_directory, "nws_data.csv")
       with open(temp_file, "w") as nws_file_obj:
-        response = awc_query.raw(responseFormat="csv")
+        response = awc_query.raw(format="csv", stationString=site)
         nws_file_obj.write(response[0])
+    except Exception as e:
+      logger.exception(e)
+    '''
+
+    try:
+      temp_file = os.path.join(self.temp_directory, "nws_data.csv")
+      with open(temp_file, "w") as nws_file_obj:
+        req = requests.get(url)
+        nws_file_obj.write(req.text)
     except Exception as e:
       logger.exception(e)
     else:
