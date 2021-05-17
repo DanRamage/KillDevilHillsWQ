@@ -294,7 +294,7 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
         except Exception as e:
           logger.exception(e)
         else:
-          csv_reader = csv.reader(response.split('\n'), delimiter=',')
+          csv_reader = csv.reader(str(response).split('\n'), delimiter=',')
           line_cnt = 0
 
           for row in csv_reader:
@@ -556,12 +556,13 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
     utc_end_date = begin_date.astimezone(utc_tz)
     start_date = begin_date.astimezone(utc_tz) - timedelta(hours=24)
 
-    awc_query.filter(station=site, start=start_date, end=utc_end_date)
+    awc_query.filter(bbox=(0,0,0,0), station=site, start=start_date, end=utc_end_date)
     try:
       # response = awc_query.collect()
       temp_file = os.path.join(self.temp_directory, "nws_data.csv")
       with open(temp_file, "w") as nws_file_obj:
-        nws_file_obj.write(awc_query.raw(responseFormat="csv")[0])
+        response = awc_query.raw(responseFormat="csv")
+        nws_file_obj.write(response[0])
     except Exception as e:
       logger.exception(e)
     else:
