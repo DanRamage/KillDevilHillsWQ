@@ -416,7 +416,7 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
         except Exception as e:
           logger.exception(e)
         else:
-          csv_reader = csv.reader(response.split('\n'), delimiter=',')
+          csv_reader = csv.reader(str(response).split('\n'), delimiter=',')
           line_cnt = 0
 
           for row in csv_reader:
