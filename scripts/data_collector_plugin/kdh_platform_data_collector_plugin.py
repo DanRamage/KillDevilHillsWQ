@@ -2,9 +2,7 @@ import sys
 sys.path.append('../../commonfiles/python')
 import os
 import logging.config
-import requests
 import time
-import xlrd
 from datetime import datetime, timedelta
 from pytz import timezone
 import csv
@@ -12,8 +10,6 @@ import traceback
 from yapsy.IPlugin import IPlugin
 from multiprocessing import Process
 
-from wq_sites import wq_sample_sites
-#from data_collector_plugin import data_collector_plugin
 import data_collector_plugin as my_plugin
 
 if sys.version_info[0] < 3:
@@ -23,12 +19,10 @@ else:
 
 from pyoos.collectors.ndbc.ndbc_sos import NdbcSos
 from pyoos.collectors.coops.coops_sos import CoopsSos
-from pyoos.collectors.awc.awc_rest import AwcRest
-
+from erddapy import ERDDAP
+import pandas as pd
 import requests
 from unitsConversion import uomconversionFunctions
-from build_tide_file import create_tide_data_file_mp
-from wqXMRGProcessing import wqXMRGProcessing
 from wq_sites import wq_sample_sites
 
 #from wqDatabase import wqDB
@@ -50,6 +44,37 @@ def flatten_element(p):
 
     return rd
 
+erddap_sites = ['44095']
+erddap_obs = [
+  {
+    'erdap_obs_query': 'sea_water_temperature',
+    'sites': ['44095', '44100'],
+    'urls': ['https://erddap.secoora.org/erddap', 'https://erddap.secoora.org/erddap'],
+    'xenia_obs': [
+      {
+        "erdap_obs_name": "sea_water_temperature",
+        "units": "celsius",
+        "xenia_name": "water_temperature",
+        "xenia_units": "celsius",
+        "dataset_ids": ['192-oregon-inlet-nc-44095', 'edu_ucsd_cdip_44100']
+      }
+    ]
+  },
+  {
+    'erdap_obs_query': 'waves',
+    'sites': ['44095', '44100'],
+    'urls': ['https://erddap.secoora.org/erddap', 'https://erddap.secoora.org/erddap'],
+    'xenia_obs': [
+      {
+        "erdap_obs_name": "sea_surface_wave_to_direction",
+        "units": "degree",
+        "xenia_name": "sea_surface_wave_to_direction",
+        "xenia_units": "degree",
+        "dataset_ids": ['192-oregon-inlet-nc-44095', 'edu_ucsd_cdip_44100']
+      }
+    ]
+  }
+]
 ndbc_sites=['44095', '44100']
 ndbc_obs = [
   {
@@ -219,12 +244,28 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
       wq_sites = wq_sample_sites()
       wq_sites.load_sites(file_name=sites_location_file, boundary_file=boundaries_location_file)
 
+      for site in erddap_sites:
+        try:
+          self.get_erdap_data(site, erddap_obs, self.begin_date, units_conversion, xenia_db)
+        except Exception as e:
+          logger.exception(e)
+      '''
       for site in ndbc_sites:
-        self.get_ndbc_data(site, ndbc_obs, self.begin_date, units_conversion, xenia_db)
+        try:
+          self.get_ndbc_data(site, ndbc_obs, self.begin_date, units_conversion, xenia_db)
+        except Exception as e:
+          logger.exception(e)
+      '''
       for site in nws_site:
-        self.get_nws_data(site, nws_obs, self.begin_date, units_conversion, xenia_db)
+        try:
+          self.get_nws_data(site, nws_obs, self.begin_date, units_conversion, xenia_db)
+        except Exception as e:
+          logger.exception(e)
       for site in nos_sites:
-        self.get_nos_data(site, nos_obs, self.begin_date, units_conversion, xenia_db)
+        try:
+          self.get_nos_data(site, nos_obs, self.begin_date, units_conversion, xenia_db)
+        except Exception as e:
+          logger.exception(e)
 
     except Exception as e:
       if logger is not None:
@@ -239,6 +280,76 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
 
     return
 
+  def get_erdap_data(self, site, observations, begin_date, units_coverter, db_obj):
+    start_time = time.time()
+    logger = logging.getLogger(self.__class__.__name__)
+    logger.debug("Starting get_erdap_data")
+
+    row_entry_date = datetime.now()
+    utc_tz = timezone('UTC')
+    eastern_tz = timezone('US/Eastern')
+
+    utc_end_date = begin_date.astimezone(utc_tz)
+    start_date = begin_date.astimezone(utc_tz) - timedelta(hours=24)
+
+    platform_handle = 'ndbc.%s.met' % (site)
+    if db_obj.platformExists(platform_handle) is None:
+      obs_list = []
+      for obs_setup in observations:
+        if site in obs_setup['sites']:
+          for xenia_obs in obs_setup['xenia_obs']:
+            obs_list.append({'obs_name': xenia_obs['xenia_name'],
+                             'uom_name': xenia_obs['xenia_units'],
+                             's_order': 1})
+      db_obj.buildMinimalPlatform(platform_handle, obs_list)
+    #Build sensor_id and m_type_id list.
+    for obs_setup in observations:
+      if site in obs_setup['sites']:
+        ndx = obs_setup['sites'].index(site)
+        url = obs_setup['urls'][ndx]
+        for xenia_obs in obs_setup['xenia_obs']:
+          m_type_id = db_obj.mTypeExists(xenia_obs['xenia_name'],xenia_obs['xenia_units'])
+          sensor_id = db_obj.sensorExists(xenia_obs['xenia_name'],
+                                          xenia_obs['xenia_units'],
+                                          platform_handle,
+                                          1)
+          dataset_id = xenia_obs['dataset_ids'][ndx]
+          erddap_query = ERDDAP(
+            server= url,
+            protocol="tabledap",
+            response="csv")
+          erddap_query.dataset_id = dataset_id
+          erddap_query.variables = [obs_setup['erdap_obs_query'], 'time', 'longitude', 'latitude', 'z']
+          erddap_query.constraints = {
+            "time>=": start_date.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "time<": utc_end_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+          }
+          df = erddap_query.to_pandas(parse_dates=True).dropna()
+          for index, row in df.iterrows():
+            date_time = datetime.strptime(row[1], '%Y-%m-%dT%H:%M:%SZ')
+            obs_rec = multi_obs(row_entry_date=row_entry_date,
+                                platform_handle=platform_handle,
+                                sensor_id=sensor_id,
+                                m_type_id=m_type_id,
+                                m_date=date_time.strftime('%Y-%m-%dT%H:%M:%S'),
+                                m_lon=row[2],
+                                m_lat=row[3],
+                                m_z=row[4],
+                                m_value=row[0],
+                                )
+
+            rec_id = db_obj.addRec(obs_rec, True)
+            if rec_id is not None:
+              logger.debug("Adding obs: %s(%s) Date: %s Value: %s S_Order: %d" % \
+                           (obs_setup['erdap_obs_query'], xenia_obs['xenia_units'], date_time, row[0], row[4]))
+            else:
+              logger.error("Failed adding obs: %s(%s) Date: %s Value: %s S_Order: %d" % \
+                           (obs_setup['erdap_obs_query'], xenia_obs['xenia_units'], date_time, row[0], row[4]))
+
+
+    logger.debug("Finished get_erddap_data in %f seconds" % (time.time() - start_time))
+
+    return
   def get_ndbc_data(self, site, observations, begin_date, units_coverter, db_obj):
     start_time = time.time()
     logger = logging.getLogger(self.__class__.__name__)
@@ -294,7 +405,7 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
         except Exception as e:
           logger.exception(e)
         else:
-          csv_reader = csv.reader(response.decode('utf-8').split('\n'), delimiter=',')
+          csv_reader = csv.reader(response.split('\n'), delimiter=',')
           line_cnt = 0
 
           for row in csv_reader:
