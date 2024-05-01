@@ -667,11 +667,15 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
     utc_end_date = begin_date.astimezone(utc_tz)
     start_date = begin_date.astimezone(utc_tz) - timedelta(hours=24)
 
+    url = "https://aviationweather.gov/cgi-bin/data/metar.php?ids={station}&hours={hours}&format=csv"\
+      .format(station=site,hours=48)
+    '''
     url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?" \
           "dataSource=metars&requestType=retrieve&format=csv&stationString={station}&hoursBeforeNow={hours}".format(
       station=site,
       hours=48
     )
+    '''
     '''
     #awc_query.filter(bbox=(-77,34,-74,36),stationString=site, start=start_date, end=utc_end_date)
     awc_query.filter(bbox=(0,0,0,0), start=start_date, end=utc_end_date)
