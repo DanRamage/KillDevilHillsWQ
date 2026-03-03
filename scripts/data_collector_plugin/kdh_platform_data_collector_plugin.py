@@ -9,7 +9,7 @@ import csv
 import traceback
 from yapsy.IPlugin import IPlugin
 from multiprocessing import Process
-
+import dateparser
 import data_collector_plugin as my_plugin
 
 if sys.version_info[0] < 3:
@@ -711,7 +711,8 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
         for row_ndx, row in enumerate(nws_csv_rdr):
           if row_ndx > header_row:
             try:
-              obs_date = utc_tz.localize(datetime.strptime(row['observation_time'], "%Y-%m-%dT%H:%M:%SZ"))
+              obs_date = utc_tz.localize(dateparser.parse(row['observation_time']))
+              #obs_date = utc_tz.localize(datetime.strptime(row['observation_time'], "%Y-%m-%dT%H:%M:%SZ"))
             except (ValueError, Exception) as e:
               logger.exception(e)
             else:
