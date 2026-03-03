@@ -702,9 +702,9 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
     except Exception as e:
       logger.exception(e)
     else:
-      self.logger.info(f"Opening NWS file {temp_file}")
+      logger.info(f"Opening NWS file {temp_file}")
       with open(temp_file, "r") as nws_data_file:
-        self.logger.info(f"Processing NWS file {temp_file}")
+        logger.info(f"Processing NWS file {temp_file}")
         line_cnt = 0
         header_row = 5
         nws_csv_rdr = csv.DictReader(nws_data_file, header)
