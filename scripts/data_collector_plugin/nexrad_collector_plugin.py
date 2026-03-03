@@ -12,16 +12,20 @@ else:
 import traceback
 import time
 from yapsy.IPlugin import IPlugin
+
+#import multiprocessing
+#multiprocessing.set_start_method('fork')
 from multiprocessing import Process
 
-from wqXMRGProcessing import wqXMRGProcessing
+
+from wqXMRGProcessing import wqXMRGProcessingGP
+
+
 
 class nexrad_collector_plugin(my_plugin.data_collector_plugin):
 
   def initialize_plugin(self, **kwargs):
     try:
-      self._start_plugin_time = time.time()
-
       Process.__init__(self)
       IPlugin.__init__(self)
 
@@ -44,6 +48,13 @@ class nexrad_collector_plugin(my_plugin.data_collector_plugin):
       start_time = time.time()
       logging.config.fileConfig(self.log_config)
       logger = logging.getLogger()
+      '''
+      mp_logging = MainLogConfig(log_filename=self.xmrg_workers_logfile,
+                                 logname=self._logger_name,
+                                 level=logging.DEBUG,
+                                 disable_existing_loggers=True)
+      mp_logging.setup_logging()
+      '''
       #logger = mp_logging.getLogger()
       logger.debug("run started.")
 
@@ -82,32 +93,32 @@ class nexrad_collector_plugin(my_plugin.data_collector_plugin):
                 }
             },
             'root': {
-                'handlers': ['file_handler'],
+                'handlers': ['file_handler', 'stream'],
                 'level': logging.NOTSET,
                 'propagate': False
             }
         }
 
-        xmrg_proc = wqXMRGProcessing(logger=True, logger_name=self._logger_name, logger_config=logging_config)
-        xmrg_proc.load_config_settings(config_file = self.ini_file)
+        geopandas_xmrg = wqXMRGProcessingGP(logger=True, logger_name=self._logger_name, logger_config=logging_config)
+        geopandas_xmrg.load_config_settings(config_file = self.ini_file)
 
         start_date_time = timezone('US/Eastern').localize(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)).astimezone(timezone('UTC'))
+        #start_date_time = timezone('US/Eastern').localize(datetime.strptime('2021-07-08', "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)).astimezone(timezone('UTC'))
+
         if fill_gaps:
           logger.info("Fill gaps Start time: %s Prev Hours: %d" % (start_date_time, backfill_hours))
-          xmrg_proc.fill_gaps(start_date_time, backfill_hours)
+          geopandas_xmrg.fill_gaps(start_date_time, backfill_hours)
         else:
           logger.info("Backfill N Hours Start time: %s Prev Hours: %d" % (start_date_time, backfill_hours))
-          file_list = xmrg_proc.download_range(start_date_time, backfill_hours)
-          xmrg_proc.import_files(file_list)
+          file_list = geopandas_xmrg.download_range(start_date_time, backfill_hours)
+          geopandas_xmrg.import_files(file_list)
 
       except Exception as e:
         logger.exception(e)
       logger.debug("run finished in %f seconds" % (time.time()-start_time))
 
+      #mp_logging.shutdown_logging()
     return
 
   def finalize(self):
-    logger = logging.getLogger(self.__class__.__name__)
-    logger.debug("finalize called, total time: %f" % (time.time() - self._start_plugin_time))
-
     return
