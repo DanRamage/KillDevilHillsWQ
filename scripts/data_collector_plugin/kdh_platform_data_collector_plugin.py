@@ -670,8 +670,10 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
     utc_end_date = begin_date.astimezone(utc_tz)
     start_date = begin_date.astimezone(utc_tz) - timedelta(hours=24)
 
-    url = "https://aviationweather.gov/cgi-bin/data/metar.php?ids={station}&hours={hours}&format=csv"\
-      .format(station=site,hours=48)
+    url = "https://www.aviationweather.gov/api/data/dataserver?" \
+          "dataSource=metars&requestType=retrieve&format=csv&stationString={station}&hoursBeforeNow={hours}".format(
+      station=site,
+      hours=48)
     '''
     url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?" \
           "dataSource=metars&requestType=retrieve&format=csv&stationString={station}&hoursBeforeNow={hours}".format(
