@@ -203,6 +203,9 @@ class kdh_platform_data_collector_plugin(my_plugin.data_collector_plugin):
       self.plugin_details = kwargs['details']
       self.begin_date = kwargs['begin_date']
       self.temp_directory = self.plugin_details.get("Settings", "temp_directory")
+      if not os.path.exists(self.temp_directory):
+        os.makedirs(self.temp_directory)
+
       self.log_config = self.plugin_details.get("Settings", "log_config")
       return True
     except Exception as e:
