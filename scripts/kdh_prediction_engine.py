@@ -30,6 +30,8 @@ from data_result_types import data_result_types
 from kdh_wq_data import kdh_wq_data
 from stats import stats
 from enterococcus_wq_test import EnterococcusPredictionTest,EnterococcusPredictionTestEx
+import multiprocessing
+multiprocessing.set_start_method('fork')
 
 
 class bacteria_sample_test(predictionTest):
@@ -322,7 +324,7 @@ class kdh_prediction_engine(wq_prediction_engine):
       self.logger.debug("Plugin directories: %s" % (kwargs['data_collector_plugin_directories']))
       yapsy_logger = logging.getLogger('yapsy')
       yapsy_logger.setLevel(logging.DEBUG)
-      #yapsy_logger.parent.level = logging.DEBUG
+      yapsy_logger.parent.level = logging.DEBUG
       yapsy_logger.disabled = False
 
       simplePluginManager.setPluginPlaces(kwargs['data_collector_plugin_directories'])
