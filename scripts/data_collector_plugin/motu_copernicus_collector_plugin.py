@@ -1,3 +1,5 @@
+import os
+
 import sys
 sys.path.append('../../commonfiles/python')
 import logging.config
@@ -34,6 +36,8 @@ class motu_copernicus_collector_plugin(my_plugin.data_collector_plugin):
       self.ini_file = self.plugin_details.get('Settings', 'ini_file')
       self.begin_date = kwargs['begin_date']
       self.output_directory = self.plugin_details.get('Settings', 'temp_directory')
+      if not os.path.exists(self.output_directory):
+        os.makedirs(self.output_directory)
       self.log_config = self.plugin_details.get("Settings", "log_config")
       return True
     except Exception as e:
