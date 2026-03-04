@@ -74,6 +74,9 @@ class kdh_wq_data(wq_data):
       self.rutgers_endpoints = []
       self.rutgers_current_date_ndx = -1
       utc_tz = timezone('UTC')
+
+      self.rutgers_time = None
+      self.rutgers_ocean_time = None
       for rutgers_date in rutgers_endpoint_dates:
         if len(rutgers_date):
           parts = rutgers_date.split(',')
@@ -215,29 +218,33 @@ class kdh_wq_data(wq_data):
     return
 
   def connect_to_rutgers(self, endpoint):
-    self.logger.debug(
-      "Connecting to thredds endpoint for rutgers data: %s" % (endpoint))
-    self.rutgers_model = nc.Dataset(self.rutgers_endpoints[self.rutgers_current_date_ndx])
-    #Seconds since 2006-01-01 00:00:00
-    self.rutgers_ocean_time = self.rutgers_model.variables['ocean_time'][:]
+    try:
+      self.logger.debug(
+        "Connecting to thredds endpoint for rutgers data: %s" % (endpoint))
+      self.rutgers_model = nc.Dataset(self.rutgers_endpoints[self.rutgers_current_date_ndx])
+      #Seconds since 2006-01-01 00:00:00
+      self.rutgers_ocean_time = None
+      if 'ocean_time' in self.rutgers_model.variables:
+        self.rutgers_ocean_time = self.rutgers_model.variables['ocean_time'][:]
 
-    #In the new(2013-present) endpoint, the time parameter is time and not ocean_time.
-    self.rutgers_time = None
-    if 'time'in self.rutgers_model.variables:
-      self.rutgers_time = self.rutgers_model.variables['time'][:]
+      #In the new(2013-present) endpoint, the time parameter is time and not ocean_time.
+      self.rutgers_time = None
+      if 'time'in self.rutgers_model.variables:
+        self.rutgers_time = self.rutgers_model.variables['time'][:]
 
-    model_bbox = [float(self.model_bbox[0]), float(self.model_bbox[2]),
-                  float(self.model_bbox[1]), float(self.model_bbox[3])]
+      model_bbox = [float(self.model_bbox[0]), float(self.model_bbox[2]),
+                    float(self.model_bbox[1]), float(self.model_bbox[3])]
 
-    # Determine the bounding box indexes.
-    lons = self.rutgers_model.variables['lon_rho'][:]
-    lats = self.rutgers_model.variables['lat_rho'][:]
+      # Determine the bounding box indexes.
+      lons = self.rutgers_model.variables['lon_rho'][:]
+      lats = self.rutgers_model.variables['lat_rho'][:]
 
-    self.rutgers_lonli, self.rutgers_lonui, self.rutgers_latli, self.rutgers_latui = bbox2ij(lons, lats, model_bbox)
+      self.rutgers_lonli, self.rutgers_lonui, self.rutgers_latli, self.rutgers_latui = bbox2ij(lons, lats, model_bbox)
 
-    self.rutgers_lon_array = self.rutgers_model.variables['lon_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
-    self.rutgers_lat_array = self.rutgers_model.variables['lat_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
-
+      self.rutgers_lon_array = self.rutgers_model.variables['lon_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
+      self.rutgers_lat_array = self.rutgers_model.variables['lat_rho'][self.rutgers_latli:self.rutgers_latui, self.rutgers_lonli:self.rutgers_lonui]
+    except Exception as e:
+      self.logger.exception(e)
     return
 
   def reset(self, **kwargs):
@@ -424,7 +431,7 @@ class kdh_wq_data(wq_data):
       end_date = start_date
       closest_start_ndx = \
         closest_end_ndx = -1
-      if self.rutgers_time is None:
+      if self.rutgers_time is None and self.rutgers_ocean_time is not None:
         if begin_date >= (model_time + timedelta(seconds=int(self.rutgers_ocean_time[0]))):
 
           start_time_delta = begin_date - model_time
@@ -897,7 +904,6 @@ class kdh_wq_data(wq_data):
           .filter(sl_multi_obs.m_date >= begin_date.strftime('%Y-%m-%dT%H:%M:%S')) \
           .filter(sl_multi_obs.m_date < end_date.strftime('%Y-%m-%dT%H:%M:%S')) \
           .filter(sl_multi_obs.sensor_id == sensor_id) \
-          .filter(or_(sl_multi_obs.qc_level == qaqcTestFlags.DATA_QUAL_GOOD, sl_multi_obs.qc_level == None)) \
           .order_by(sl_multi_obs.m_date).all()
         if dir_id is not None:
           dir_recs = self.xenia_obs_db.session.query(sl_multi_obs) \
